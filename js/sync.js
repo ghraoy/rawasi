@@ -1,6 +1,7 @@
-// المزامنة مع Google Drive عن طريق Google Apps Script (سكربت صغير ينحفظ بحساب Google مالتك).
-// التطبيق يرسل نسخته، والسكربت يدمجها مع النسخة المحفوظة بالـ Drive ويرجع النسخة الموحدة.
+// المزامنة: الطريقة الأساسية زر "ربط بحساب Google" (مباشرة مع Drive).
+// السكربت (Apps Script) صار اختياري، فقط للمساعد الذكي.
 import * as store from './store.js';
+import * as gdrive from './gdrive.js';
 import { computeInventory, bookingTotals, lotTotals, live, STATUSES, round } from './logic.js';
 
 const KEY = 'rawasi.sync';
@@ -19,10 +20,13 @@ export function setConfig(patch) {
   return c;
 }
 
-export const isConfigured = () => {
+export const googleEmail = () => localStorage.getItem('rawasi.gconnected') || '';
+export const isGoogle = () => !!googleEmail();
+export const aiReady = () => {
   const c = getConfig();
   return !!(c.url && c.token);
 };
+export const isConfigured = () => isGoogle();
 
 let status = { state: 'idle', message: '' };
 const listeners = new Set();
@@ -33,10 +37,10 @@ function setStatus(s) {
   for (const fn of listeners) fn(s);
 }
 
-// طلب للسكربت. نرسل النص بدون ترويسة JSON حتى ما يحتاج المتصفح طلب CORS إضافي.
+// طلب لسكربت Google (للمساعد الذكي). نرسل النص بدون ترويسة JSON حتى ما يحتاج طلب CORS إضافي.
 export async function call(action, payload = {}, { timeout = 60000 } = {}) {
   const c = getConfig();
-  if (!c.url || !c.token) throw new Error('المزامنة غير مفعّلة. افتح الإعدادات وأضف رابط السكربت والرمز السري.');
+  if (!c.url || !c.token) throw new Error('المساعد الذكي غير مفعّل. شوف الإعدادات ← المساعد الذكي.');
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeout);
   try {
@@ -67,29 +71,49 @@ export async function ping() {
   return call('ping', {}, { timeout: 20000 });
 }
 
+// ربط بحساب Google بضغطة وحدة، وبعدها مزامنة فورية.
+export async function connectGoogle() {
+  await gdrive.signIn();
+  let email = '';
+  try {
+    email = await gdrive.accountEmail();
+  } catch {}
+  localStorage.setItem('rawasi.gconnected', email || 'متصل');
+  return syncNow({ interactive: true });
+}
+
+export function disconnectGoogle() {
+  gdrive.signOut();
+  localStorage.removeItem('rawasi.gconnected');
+  setStatus({ state: 'idle', message: '' });
+}
+
 let syncing = null;
-export function syncNow({ quiet = false } = {}) {
+// interactive: true لما المستخدم ضغط زر (نقدر نفتح نافذة Google إذا انتهت الجلسة).
+export function syncNow({ quiet = false, interactive = false } = {}) {
   if (syncing) return syncing;
-  if (!isConfigured()) return Promise.resolve(false);
+  if (!isGoogle()) return Promise.resolve(false);
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     setStatus({ state: 'offline', message: 'بدون إنترنت' });
+    return Promise.resolve(false);
+  }
+  if (!gdrive.hasToken() && !interactive) {
+    setStatus({ state: 'needsAuth', message: 'اضغط للمزامنة' });
     return Promise.resolve(false);
   }
   setStatus({ state: 'syncing', message: 'جاري المزامنة…' });
   syncing = (async () => {
     try {
-      const local = store.getData();
-      const sent = JSON.parse(JSON.stringify(local));
-      const res = await call('sync', { data: sent, sheets: buildSheets(sent) }, { timeout: 90000 });
+      if (!gdrive.hasToken()) await gdrive.signIn({ hint: googleEmail().includes('@') ? googleEmail() : undefined });
+      const remoteMerged = await gdrive.sync(buildSheets);
       // نعيد الدمج مع النسخة المحلية الحالية حتى ما تضيع أي تعديلات صارت أثناء الطلب.
-      const merged = store.merge(store.getData(), res.data);
-      store.replaceAll(merged);
+      store.replaceAll(store.merge(store.getData(), remoteMerged));
       const when = new Date().toISOString();
       setConfig({ lastSync: when });
       setStatus({ state: 'ok', message: 'متزامن', at: when });
       return true;
     } catch (e) {
-      setStatus({ state: 'error', message: e.message });
+      setStatus({ state: gdrive.hasToken() ? 'error' : 'needsAuth', message: e.message });
       if (!quiet) throw e;
       return false;
     } finally {
@@ -99,21 +123,22 @@ export function syncNow({ quiet = false } = {}) {
   return syncing;
 }
 
-// مزامنة تلقائية: بعد كل تعديل بعشرين ثانية، وعند فتح التطبيق، وعند الخروج منه.
+// مزامنة تلقائية ما دامت جلسة Google فعالة: بعد كل تعديل بعشر ثواني، وعند الخروج من التطبيق.
 let timer = null;
 export function startAuto() {
+  gdrive.preload();
   store.subscribe(() => {
-    if (!isConfigured() || !getConfig().auto) return;
+    if (!isGoogle() || !getConfig().auto) return;
     clearTimeout(timer);
-    timer = setTimeout(() => syncNow({ quiet: true }), 20000);
+    timer = setTimeout(() => syncNow({ quiet: true }), 10000);
   });
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden' && store.isDirty() && isConfigured() && getConfig().auto) syncNow({ quiet: true });
+      if (document.visibilityState === 'hidden' && store.isDirty() && isGoogle()) syncNow({ quiet: true });
     });
-    window.addEventListener('online', () => isConfigured() && syncNow({ quiet: true }));
+    window.addEventListener('online', () => isGoogle() && syncNow({ quiet: true }));
   }
-  if (isConfigured() && getConfig().auto) setTimeout(() => syncNow({ quiet: true }), 1500);
+  if (isGoogle()) setTimeout(() => syncNow({ quiet: true }), 800);
 }
 
 // جداول مقروءة تنكتب بـ Google Sheet (نسخة للعرض فقط؛ الأساس هو ملف البيانات).

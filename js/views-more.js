@@ -19,7 +19,7 @@ function aiView() {
     state.ui.aiMode = state.route.params.mode;
   }
   const mode = ui('aiMode', 'parse');
-  const ready = sync.isConfigured();
+  const ready = sync.aiReady();
   const busy = state.ui.aiBusy;
   const products = store.all('products').sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'));
   const capPid = state.drafts.capProduct || state.route.params.product || products[0]?.id || '';
@@ -32,7 +32,7 @@ function aiView() {
     <div class="ai-logo">${icon('spark', 20)}</div>
     <div class="col"><h1>مساعد رواسي</h1><small class="muted">يعرف مخزنك وحجوزاتك</small></div></div>
   </header>
-  ${ready ? '' : `<p class="note note-warn">${icon('lock', 18)} <span>المساعد يحتاج ربط سكربت Google مع مفتاح Gemini. <a href="#/settings">افتح الإعدادات</a> واتبع <a href="${REPO_GUIDE}" target="_blank" rel="noopener">دليل الإعداد</a>.</span></p>`}
+  ${ready ? '' : `<p class="note note-warn">${icon('lock', 18)} <span>المساعد يحتاج سكربت Google مع مفتاح Gemini (غير المزامنة). <a href="#/settings">افتح الإعدادات ← المساعد الذكي</a> واتبع <a href="${REPO_GUIDE}" target="_blank" rel="noopener">دليل الإعداد</a>.</span></p>`}
   <div class="tabs" role="tablist">
     ${[['parse', 'حجز من رسالة'], ['caption', 'كابشن لمنتج'], ['ask', 'اسأل عن متجرك']].map(([k, l]) => `<button type="button" role="tab" aria-selected="${k === mode}" class="tab${k === mode ? ' on' : ''}" data-act="aiMode" data-v="${k}">${l}</button>`).join('')}
   </div>
@@ -228,18 +228,22 @@ function settingsView() {
   return `
   <header class="page-head"><div class="row gap"><a class="icon-btn" href="#/more" aria-label="رجوع">${icon('back')}</a><h1>الإعدادات</h1></div></header>
 
-  <form class="card form" data-submit="saveSync">
+  <section class="card form">
     <h2>${icon('cloud', 20)} المزامنة مع Google Drive</h2>
-    <p class="muted small">انسخ رابط السكربت (Web app URL) والرمز السري اللي كتبته بالسكربت. الخطوات كاملة بـ <a href="${REPO_GUIDE}" target="_blank" rel="noopener">دليل الإعداد</a>.</p>
-    <label class="field"><span>رابط السكربت</span><input name="url" dir="ltr" value="${esc(c.url)}" placeholder="https://script.google.com/macros/s/…/exec"></label>
-    <label class="field"><span>الرمز السري</span><input name="token" dir="ltr" type="password" value="${esc(c.token)}" autocomplete="off"></label>
-    <label class="check"><input type="checkbox" name="auto" ${c.auto ? 'checked' : ''}> <span>مزامنة تلقائية بعد كل تعديل</span></label>
-    <div class="row gap wrap">
-      <button class="btn" type="submit">${icon('check', 18)}<span>حفظ واختبار</span></button>
-      <button class="btn btn-ghost" type="button" data-act="syncNow" ${sync.isConfigured() ? '' : 'disabled'}>${icon('refresh', 18)}<span>مزامنة الآن</span></button>
-    </div>
-    <p class="small ${st.state === 'error' ? 'neg' : 'muted'}">${st.state === 'error' ? esc(st.message) : c.lastSync ? 'آخر مزامنة: ' + esc(new Date(c.lastSync).toLocaleString('ar-IQ')) : 'لم تتم أي مزامنة بعد'}</p>
-  </form>
+    ${sync.isGoogle() ? `
+      <div class="row gap"><div class="avatar">${icon('cloudOk', 20)}</div><div class="col grow"><b>متصل</b><small class="muted" dir="ltr" style="text-align:right">${esc(sync.googleEmail())}</small></div></div>
+      <div class="row gap wrap">
+        <button class="btn grow" type="button" data-act="syncNow">${icon('refresh', 18)}<span>مزامنة الآن</span></button>
+        <button class="btn btn-ghost" type="button" data-act="disconnectGoogle">فصل</button>
+      </div>
+      <label class="check"><input type="checkbox" data-in="syncAuto" ${c.auto ? 'checked' : ''}> <span>مزامنة تلقائية بعد كل تعديل</span></label>
+      <p class="small ${st.state === 'error' ? 'neg' : 'muted'}">${st.state === 'error' ? esc(st.message) : c.lastSync ? 'آخر مزامنة: ' + esc(new Date(c.lastSync).toLocaleString('ar-IQ')) : 'لم تتم أي مزامنة بعد'}</p>
+      <p class="muted small">البيانات بمجلد "تطبيق رواسي" بالـ Drive مالتك، وبيه جدول Google Sheet ونسخ احتياطية يومية.</p>`
+    : `
+      <p class="muted small">اضغط الزر واختر حسابك، وخلص. سوّها بنفس الطريقة على كل جهاز (موبايل وحاسبة) حتى تتوحد البيانات.</p>
+      <button class="btn btn-google" type="button" data-act="connectGoogle"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span>ربط بحساب Google</span></button>
+      ${st.state === 'error' || st.state === 'needsAuth' ? `<p class="small neg">${esc(st.message)}</p>` : ''}`}
+  </section>
 
   <form class="card form" data-submit="saveSettings">
     <h2>${icon('gear', 20)} المتجر</h2>
@@ -264,6 +268,16 @@ function settingsView() {
       <button class="btn btn-ghost" data-act="exportAll">${icon('sheet', 18)}<span>تصدير إكسل</span></button>
     </div>
   </section>
+
+  <details class="card form">
+    <summary><b>${icon('spark', 18)} المساعد الذكي (اختياري)</b></summary>
+    <p class="muted small">يحتاج سكربت Google مع مفتاح Gemini. الخطوات بـ <a href="${REPO_GUIDE}" target="_blank" rel="noopener">دليل الإعداد</a>.</p>
+    <form class="col gap" data-submit="saveSync">
+      <label class="field"><span>رابط السكربت</span><input name="url" dir="ltr" value="${esc(c.url)}" placeholder="https://script.google.com/macros/s/…/exec"></label>
+      <label class="field"><span>الرمز السري</span><input name="token" dir="ltr" type="password" value="${esc(c.token)}" autocomplete="off"></label>
+      <button class="btn btn-ghost" type="submit">${icon('check', 18)}<span>حفظ واختبار</span></button>
+    </form>
+  </details>
 
   <section class="card form">
     <h2>${icon('lock', 20)} قفل التطبيق</h2>
@@ -305,6 +319,7 @@ register({
       rerender();
     },
     expMonth: (el) => el.value && setUi('expMonth', el.value),
+    syncAuto: (el) => sync.setConfig({ auto: el.checked }),
     repFrom: (el) => setUi('repFrom', el.value),
     repTo: (el) => setUi('repTo', el.value),
     restoreFile: async (el) => {
@@ -390,6 +405,11 @@ register({
         toast(e.message, 'err');
       }
     },
+    disconnectGoogle: () => {
+      sync.disconnectGoogle();
+      toast('انفصل حساب Google. بياناتك باقية على الجهاز وبالـ Drive.');
+      rerender();
+    },
     removePin: () => {
       localStorage.removeItem('rawasi.pin');
       toast('انلغى القفل');
@@ -412,17 +432,15 @@ register({
     },
     saveSync: async (form) => {
       const v = formData(form);
-      sync.setConfig({ url: v.url, token: v.token, auto: !!form.elements.auto.checked });
+      sync.setConfig({ url: v.url, token: v.token });
       if (!v.url || !v.token) {
-        toast('انحفظ (المزامنة متوقفة)');
+        toast('انحفظ');
         return rerender();
       }
       try {
         toast('جاري الاختبار…');
         const r = await sync.ping();
-        toast(`الاتصال شغال ✓ ${r.email ? '(' + r.email + ')' : ''}`);
-        await sync.syncNow();
-        toast('تمت المزامنة ✓');
+        toast(`السكربت شغال ✓ ${r.email ? '(' + r.email + ')' : ''}`);
       } catch (e) {
         toast(e.message, 'err');
       }

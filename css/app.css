@@ -447,3 +447,12 @@ img { max-width: 100%; }
   .nav, .fab, .sticky-actions { display: none !important; }
   body { background: #fff; }
 }
+
+/* ---------- ربط Google ---------- */
+.btn-google { background: #fff; color: #1f1f1f; border: 1px solid #DADCE0; min-height: 50px; font-size: 16px; }
+.btn-google:hover { background: #F8F9FA; color: #1f1f1f; }
+.sync-chip.warn { background: var(--amber-soft); color: var(--amber-ink); }
+details.card > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 6px; min-height: 32px; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary b { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-weight: 600; }
+details.card:not([open]) > :not(summary) { display: none; }

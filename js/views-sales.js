@@ -11,11 +11,13 @@ const pmap = () => Object.fromEntries(store.all('products').map((p) => [p.id, p]
 // ---------- الرئيسية ----------
 function syncChip() {
   const st = sync.getStatus();
-  if (!sync.isConfigured()) return `<a class="sync-chip off" href="#/settings">${icon('cloudOff', 16)}<span>المزامنة غير مفعلة</span></a>`;
+  if (!sync.isGoogle()) return `<button type="button" class="sync-chip off" data-act="connectGoogle">${icon('cloudOff', 16)}<span>ربط بحساب Google</span></button>`;
   const map = {
     syncing: ['busy', 'refresh', 'جاري المزامنة…'],
-    error: ['err', 'cloudOff', 'فشلت المزامنة'],
+    error: ['err', 'cloudOff', 'فشلت، اضغط للإعادة'],
     offline: ['off', 'cloudOff', 'بدون إنترنت'],
+    needsAuth: ['warn', 'refresh', 'اضغط للمزامنة'],
+    idle: ['warn', 'refresh', 'اضغط للمزامنة'],
   };
   const [cls, ic, label] = map[st.state] || ['ok', 'cloudOk', 'متزامن مع Drive'];
   return `<button type="button" class="sync-chip ${cls}" data-act="syncNow" title="${esc(st.message || '')}">${icon(ic, 16)}<span>${label}</span></button>`;
@@ -513,9 +515,18 @@ register({
     },
   },
   act: {
+    connectGoogle: async () => {
+      try {
+        await sync.connectGoogle();
+        toast('انربط حساب Google وتمت المزامنة ✓');
+      } catch (e) {
+        toast(e.message, 'err');
+      }
+      rerender();
+    },
     syncNow: async () => {
       try {
-        await sync.syncNow();
+        await sync.syncNow({ interactive: true });
         toast('تمت المزامنة ✓');
       } catch (e) {
         toast(e.message, 'err');
