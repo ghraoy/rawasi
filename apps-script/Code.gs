@@ -168,6 +168,12 @@ function json_(obj) {
 
 /** شغّل هذه الدالة مرة وحدة من المحرر حتى توافق على الصلاحيات وتتأكد إن كل شي شغال. */
 function setup() {
+  const props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('TOKEN') && (!TOKEN || TOKEN.indexOf('اكتب') === 0)) {
+    // إذا ما كتبت رمز، نسوي رمز عشوائي قوي ونحفظه بخصائص السكربت
+    props.setProperty('TOKEN', Utilities.getUuid().replace(/-/g, ''));
+  }
+  Logger.log('الرمز السري (انسخه لإعدادات التطبيق): ' + getSetting_('TOKEN', TOKEN));
   const folder = folder_();
   dataFile_(folder);
   Logger.log('المجلد جاهز: ' + folder.getUrl());
