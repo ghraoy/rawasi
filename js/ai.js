@@ -1,10 +1,15 @@
-// الذكاء الاصطناعي: الطلب يمر عبر سكربت Google مالتك، والمفتاح ينحفظ هناك فقط (ما ينحفظ بالتطبيق).
-import { call } from './sync.js';
+// الذكاء الاصطناعي: يشتغل بحساب Google المربوط بالتطبيق (Gemini)، بدون مفتاح.
+import { call, aiViaScript, isGoogle } from './sync.js';
+import { gemini } from './gdrive.js';
 import { live } from './logic.js';
 
 async function ask({ system, prompt, image, json = false }) {
-  const res = await call('ai', { system, prompt, image, json }, { timeout: 90000 });
-  return res.text || '';
+  // الطريقة الأساسية: حساب Google المربوط. السكربت يبقى خيار إضافي إذا كان مضبوط.
+  if (aiViaScript() && !isGoogle()) {
+    const res = await call('ai', { system, prompt, image, json }, { timeout: 90000 });
+    return res.text || '';
+  }
+  return gemini({ system, prompt, image, json });
 }
 
 function parseJson(text) {

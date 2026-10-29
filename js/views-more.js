@@ -32,7 +32,7 @@ function aiView() {
     <div class="ai-logo">${icon('spark', 20)}</div>
     <div class="col"><h1>مساعد رواسي</h1><small class="muted">يعرف مخزنك وحجوزاتك</small></div></div>
   </header>
-  ${ready ? '' : `<p class="note note-warn">${icon('lock', 18)} <span>المساعد يحتاج سكربت Google مع مفتاح Gemini (غير المزامنة). <a href="#/settings">افتح الإعدادات ← المساعد الذكي</a> واتبع <a href="${REPO_GUIDE}" target="_blank" rel="noopener">دليل الإعداد</a>.</span></p>`}
+  ${ready ? '' : `<p class="note note-warn">${icon('lock', 18)} <span>المساعد يشتغل بحساب Google. اضغط الزر مرة وحدة وخلص.</span></p><button class="btn btn-google" type="button" data-act="connectGoogle">${icon('spark', 18)}<span>ربط بحساب Google</span></button>`}
   <div class="tabs" role="tablist">
     ${[['parse', 'حجز من رسالة'], ['caption', 'كابشن لمنتج'], ['ask', 'اسأل عن متجرك']].map(([k, l]) => `<button type="button" role="tab" aria-selected="${k === mode}" class="tab${k === mode ? ' on' : ''}" data-act="aiMode" data-v="${k}">${l}</button>`).join('')}
   </div>
@@ -270,8 +270,8 @@ function settingsView() {
   </section>
 
   <details class="card form">
-    <summary><b>${icon('spark', 18)} المساعد الذكي (اختياري)</b></summary>
-    <p class="muted small">يحتاج سكربت Google مع مفتاح Gemini. الخطوات بـ <a href="${REPO_GUIDE}" target="_blank" rel="noopener">دليل الإعداد</a>.</p>
+    <summary><b>${icon('spark', 18)} متقدم: سكربت المساعد</b></summary>
+    <p class="muted small">ما تحتاجه. المساعد يشتغل تلقائياً بحساب Google المربوط. هذا فقط إذا تريد تشغله عن طريق سكربت ومفتاح خاص.</p>
     <form class="col gap" data-submit="saveSync">
       <label class="field"><span>رابط السكربت</span><input name="url" dir="ltr" value="${esc(c.url)}" placeholder="https://script.google.com/macros/s/…/exec"></label>
       <label class="field"><span>الرمز السري</span><input name="token" dir="ltr" type="password" value="${esc(c.token)}" autocomplete="off"></label>

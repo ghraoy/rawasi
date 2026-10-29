@@ -22,10 +22,11 @@ export function setConfig(patch) {
 
 export const googleEmail = () => localStorage.getItem('rawasi.gconnected') || '';
 export const isGoogle = () => !!googleEmail();
-export const aiReady = () => {
+export const aiViaScript = () => {
   const c = getConfig();
   return !!(c.url && c.token);
 };
+export const aiReady = () => isGoogle() || aiViaScript();
 export const isConfigured = () => isGoogle();
 
 let status = { state: 'idle', message: '' };

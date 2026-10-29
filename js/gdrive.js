@@ -3,7 +3,10 @@
 import * as store from './store.js';
 
 export const CLIENT_ID = '909839835408-vv8kb339l4svcsvbd2b8ru7kgnhc5vjp.apps.googleusercontent.com';
-const SCOPE = 'https://www.googleapis.com/auth/drive.file';
+// صلاحيتين فقط: ملفات التطبيق بالـ Drive، والمساعد الذكي (Gemini).
+const SCOPE = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/generative-language.retriever';
+const PROJECT = 'rawasi-app';
+const MODELS = ['gemini-3.5-flash-lite', 'gemini-3.6-flash', 'gemini-flash-latest'];
 const FOLDER = 'تطبيق رواسي';
 const DATA = 'rawasi-data.json';
 const SHEET = 'رواسي - الجداول';
@@ -218,4 +221,38 @@ async function writeSheets(folderId, sheets) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ valueInputOption: 'RAW', data: names.map((n) => ({ range: `'${n}'!A1`, values: sheets[n] })) }),
   });
+}
+
+// المساعد الذكي عن طريق حساب Google نفسه (بدون مفتاح وبدون سكربت).
+export async function gemini({ system, prompt, image, json = false }) {
+  if (!hasToken()) await signIn({ hint: (localStorage.getItem('rawasi.gconnected') || '').includes('@') ? localStorage.getItem('rawasi.gconnected') : undefined });
+  const parts = [{ text: String(prompt || '') }];
+  if (image?.data) parts.push({ inline_data: { mime_type: image.mimeType || 'image/jpeg', data: image.data } });
+  const payload = { contents: [{ role: 'user', parts }] };
+  if (system) payload.systemInstruction = { parts: [{ text: String(system) }] };
+  if (json) payload.generationConfig = { responseMimeType: 'application/json' };
+  let lastErr;
+  for (const model of MODELS) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'x-goog-user-project': PROJECT, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const out = await res.json().catch(() => ({}));
+    if (res.ok) {
+      const text = (out.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('');
+      if (text) return text;
+      lastErr = new Error('ما وصل رد من Gemini، جرّب مرة ثانية.');
+      continue;
+    }
+    if (res.status === 401) {
+      token = null;
+      tokenExp = 0;
+      sessionStorage.removeItem('rawasi.gtoken');
+      throw new Error('انتهت جلسة Google. اضغط مرة ثانية.');
+    }
+    lastErr = new Error('Gemini: ' + (out.error?.message || 'HTTP ' + res.status));
+    if (res.status !== 404 && res.status !== 400) break; // جرب النموذج التالي فقط إذا النموذج غير متوفر
+  }
+  throw lastErr;
 }
