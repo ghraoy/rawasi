@@ -3,7 +3,9 @@ import * as store from './store.js';
 import { register, state, inv, data, settings, nav, rerender, ui, setUi, formData, bumpVersion } from './core.js';
 import { esc, icon, thumb, stockPill, money, fmtDate, today, toast, resizeImage, options, emptyState, copyText } from './ui.js';
 import { live, fmtNum, fmtIQD, lotBreakdown, lotTotals, productCostHistory, rateFromTotals, tomanToIqd, stockLevel, round } from './logic.js';
-import { parseFile, downloadTemplate } from './excel.js';
+import { parseFile, downloadTemplate, sheetToText } from './excel.js';
+import * as ai from './ai.js';
+import * as sync from './sync.js';
 
 const n = (v) => Number(v) || 0;
 
@@ -48,7 +50,7 @@ function productsView() {
     <div class="row baseline gap"><h1>المنتجات</h1><span class="muted">${fmtNum(total)} منتج</span></div>
     <div class="row gap">
       <a class="btn btn-ghost btn-sm" href="#/lots">${icon('truck', 18)}<span>وجبات التجهيز</span></a>
-      <a class="btn btn-ghost btn-sm hide-sm" href="#/import">${icon('sheet', 18)}<span>إكسل</span></a>
+      <a class="btn btn-ghost btn-sm" href="#/import">${icon('spark', 18)}<span>إضافة بالذكاء</span></a>
     </div>
   </header>
   <div class="search">
@@ -98,10 +100,13 @@ function productView(id) {
 
   <form class="card form" data-submit="saveProduct" data-id="${esc(isNew ? '' : p.id)}">
     <div class="photo-row">
+      <div class="col gap-sm">
       <label class="photo-pick" for="pphoto">
         ${draftPhoto ? `<img src="${esc(draftPhoto)}" alt="صورة المنتج">` : `<span>${icon('camera', 26)}<small>إضافة صورة</small></span>`}
       </label>
       <input id="pphoto" type="file" accept="image/*" class="sr" data-in="productPhoto" data-id="${esc(id)}">
+      ${draftPhoto ? `<button type="button" class="btn btn-ghost btn-sm photo-ai" data-act="aiProductFromPhoto" data-id="${esc(id)}">${icon('spark', 16)}<span>اقترح من الصورة</span></button>` : ''}
+      </div>
       <div class="grow col gap">
         <label class="field"><span>اسم المنتج</span><input name="name" required value="${esc(p.name || '')}" placeholder="مثلاً: صحن سيراميك فيروزي"></label>
         <div class="grid2">
@@ -295,15 +300,30 @@ function importView() {
   const opt = state.drafts.importOpt || (state.drafts.importOpt = { mode: 'lot', date: today(), currency: 'toman', tomanPer1000: settings().tomanPer1000 || '', name: '' });
   return `
   <header class="page-head">
-    <div class="row gap"><a class="icon-btn" href="#/products" aria-label="رجوع">${icon('back')}</a><h1>رفع ملف إكسل</h1></div>
+    <div class="row gap"><a class="icon-btn" href="#/products" aria-label="رجوع">${icon('back')}</a><h1>إضافة منتجات</h1></div>
   </header>
   <section class="card col gap">
-    <p>1. نزّل النموذج وعبّيه: اسم المنتج، التصنيف، الكمية، سعر الشراء (تومان أو دينار)، وسعر البيع.</p>
-    <button class="btn btn-ghost" data-act="downloadTemplate">${icon('download', 18)}<span>تنزيل النموذج</span></button>
-    <p>2. ارفع الملف (xlsx أو csv):</p>
-    <label class="btn btn-dashed" for="xfile">${icon('upload', 18)}<span>اختيار ملف</span></label>
+    <h2>${icon('spark', 20)} بالذكاء الاصطناعي</h2>
+    <p class="muted small">الصق قائمة منتجات بأي شكل (رسالة المورد، أسعار، جدول منسوخ)، أو صوّر الفاتورة أو قائمة الأسعار أو البضاعة. المساعد يرتبها لك وتراجعها قبل الحفظ.</p>
+    <label class="field"><span class="sr">النص</span><textarea id="aiProdText" rows="5" placeholder="مثلاً: صحن فيروزي 12 قطعة سعر 5 مليون تومان، مزهرية عاجية 8 قطع 7 مليون، نبيعها 25 و 35 ألف…">${esc(state.drafts.aiProdText || '')}</textarea></label>
+    ${(state.drafts.aiProdImages || []).length ? `<div class="row gap wrap">${state.drafts.aiProdImages.map((src, i) => `<div class="ai-thumb"><img src="${esc(src)}" alt="صورة ${i + 1}"><button type="button" class="icon-btn sm" data-act="aiProdRemoveImg" data-i="${i}" aria-label="حذف الصورة">${icon('x', 14)}</button></div>`).join('')}</div>` : ''}
+    <div class="row gap wrap">
+      <label class="btn btn-ghost" for="aiProdImg">${icon('camera', 18)}<span>صورة / فاتورة</span></label>
+      <input id="aiProdImg" class="sr" type="file" accept="image/*" multiple data-in="aiProdImg">
+      <button class="btn grow" type="button" data-act="aiExtractProducts" ${state.ui.aiBusy ? 'disabled' : ''}>${state.ui.aiBusy ? '<span class="spin"></span><span>جاري الترتيب…</span>' : icon('spark', 18) + '<span>رتّبها بالذكاء</span>'}</button>
+    </div>
+    ${sync.aiReady() ? '' : '<p class="small muted">يحتاج ربط حساب Google (من الإعدادات أو زر المزامنة بالرئيسية).</p>'}
+  </section>
+  <section class="card col gap">
+    <h2>${icon('sheet', 20)} من ملف إكسل</h2>
+    <p class="muted small">أي ملف إكسل أو CSV. إذا الأعمدة مو مرتبة، المساعد الذكي يقرأه لحاله.</p>
+    <div class="row gap wrap">
+      <label class="btn btn-dashed grow" for="xfile">${icon('upload', 18)}<span>اختيار ملف</span></label>
+      <button class="btn btn-ghost" data-act="downloadTemplate">${icon('download', 18)}<span>النموذج</span></button>
+    </div>
     <input id="xfile" class="sr" type="file" accept=".xlsx,.xls,.csv" data-in="importFile">
   </section>
+  ${state.drafts.aiProdNote ? `<p class="note">${icon('spark', 18)} <span>${esc(state.drafts.aiProdNote)}</span></p>` : ''}
   ${rows ? `
   <section class="card">
     <div class="row between"><h2>معاينة (${fmtNum(rows.length)} صف)</h2><button class="link" data-act="importClear">إلغاء</button></div>
@@ -440,12 +460,29 @@ register({
       }
       refreshLotNumbers(id);
     },
+    aiProdImg: async (el) => {
+      const files = [...(el.files || [])].slice(0, 4);
+      if (!files.length) return;
+      state.drafts.aiProdText = document.getElementById('aiProdText')?.value || '';
+      state.drafts.aiProdImages = (state.drafts.aiProdImages || []).concat(await Promise.all(files.map((f) => resizeImage(f, 1400, 0.82)))).slice(0, 4);
+      rerender();
+    },
     importFile: async (el) => {
       const f = el.files?.[0];
       if (!f) return;
       try {
         toast('جاري قراءة الملف…');
-        const rows = await parseFile(f);
+        let rows;
+        try {
+          rows = await parseFile(f);
+        } catch (err) {
+          if (!sync.aiReady()) throw err;
+          toast('الأعمدة مو مرتبة، المساعد يقرأ الملف…');
+          const text = await sheetToText(f);
+          const r = await ai.extractProducts({ text, data: data() });
+          rows = r.rows;
+          state.drafts.aiProdNote = 'رتّبه المساعد من الملف، راجعه قبل التطبيق.' + (r.note ? ' ' + r.note : '');
+        }
         if (!rows.length) return toast('الملف فارغ', 'err');
         state.drafts.importRows = rows;
         const hasToman = rows.some((r) => r.costToman > 0);
@@ -505,7 +542,69 @@ register({
       nav('#/batch/new');
     },
     downloadTemplate: () => downloadTemplate().catch((e) => toast(e.message, 'err')),
+    aiProdRemoveImg: (el) => {
+      state.drafts.aiProdText = document.getElementById('aiProdText')?.value || '';
+      state.drafts.aiProdImages.splice(+el.dataset.i, 1);
+      rerender();
+    },
+    aiExtractProducts: async () => {
+      const text = document.getElementById('aiProdText')?.value.trim() || '';
+      const images = state.drafts.aiProdImages || [];
+      state.drafts.aiProdText = text;
+      if (!text && !images.length) return toast('الصق نص أو أضف صورة أولاً', 'err');
+      state.ui.aiBusy = true;
+      rerender();
+      try {
+        const r = await ai.extractProducts({ text, images, data: data() });
+        if (!r.rows.length) {
+          toast('ما لقيت منتجات بالنص أو الصورة', 'err');
+        } else {
+          state.drafts.importRows = r.rows;
+          const opt = state.drafts.importOpt || (state.drafts.importOpt = { mode: 'lot', date: today(), currency: 'toman', tomanPer1000: settings().tomanPer1000 || '', name: '' });
+          opt.currency = r.currency;
+          if (!r.rows.some((x) => x.qty > 0)) opt.mode = 'products';
+          state.drafts.aiProdNote = `رتّب المساعد ${fmtNum(r.rows.length)} منتج، راجعهم تحت قبل التطبيق.` + (r.note ? ' ' + r.note : '');
+          state.drafts.aiProdText = '';
+          state.drafts.aiProdImages = [];
+        }
+      } catch (e) {
+        toast(e.message, 'err');
+      } finally {
+        state.ui.aiBusy = false;
+        rerender();
+        document.querySelector('.table-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    },
+    aiProductFromPhoto: async (el) => {
+      const id = el.dataset.id;
+      const photo = state.drafts.productPhoto?.id === id ? state.drafts.productPhoto.photo : store.get('products', id)?.photo;
+      if (!photo) return toast('أضف صورة للمنتج أولاً', 'err');
+      const form = el.closest('form');
+      el.disabled = true;
+      el.innerHTML = '<span class="spin"></span><span>جاري…</span>';
+      try {
+        const r = await ai.productFromPhoto(photo, data());
+        if (r.name && !form.elements.name.value) form.elements.name.value = r.name;
+        else if (r.name) form.elements.name.value = r.name;
+        if (r.category) {
+          const sel = form.elements.category;
+          if ([...sel.options].some((o) => o.value === r.category)) sel.value = r.category;
+          else {
+            sel.value = '__new';
+            form.elements.newCategory.value = r.category;
+          }
+        }
+        if (r.notes && !form.elements.notes.value) form.elements.notes.value = r.notes;
+        toast('عبّاها المساعد، راجعها واحفظ ✓');
+      } catch (e) {
+        toast(e.message, 'err');
+      } finally {
+        el.disabled = false;
+        el.innerHTML = icon('spark', 16) + '<span>اقترح من الصورة</span>';
+      }
+    },
     importClear: () => {
+      state.drafts.aiProdNote = '';
       state.drafts.importRows = null;
       rerender();
     },

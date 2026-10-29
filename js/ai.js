@@ -51,3 +51,40 @@ export async function askStore(question, summary, history = []) {
   const prompt = `بيانات المتجر الحالية (JSON):\n${JSON.stringify(summary)}\n\n${past ? 'المحادثة السابقة:\n' + past + '\n\n' : ''}السؤال: ${question}`;
   return (await ask({ system, prompt })).trim();
 }
+
+function toImagePart(dataUrl) {
+  if (!dataUrl || !dataUrl.startsWith('data:')) return undefined;
+  const [head, b64] = dataUrl.split(',');
+  return { mimeType: head.slice(5, head.indexOf(';')), data: b64 };
+}
+
+// استخراج منتجات من نص (قائمة، رسالة مورد، جدول منسوخ) أو صورة (فاتورة، قائمة أسعار، صورة بضاعة).
+export async function extractProducts({ text = '', images = [], data }) {
+  const cats = data.settings.categories || [];
+  const existing = live(data.products).map((p) => p.name).slice(0, 300);
+  const system = 'أنت تساعد صاحب متجر عراقي يبيع ديكور وسيراميك وأمور دينية. تستخرج قائمة منتجات وكمياتها وأسعارها من نص أو صورة. لا تخترع أرقام غير موجودة.';
+  const prompt = `التصنيفات المتاحة: ${cats.join('، ')}\nمنتجات موجودة سابقاً (إذا نفس المنتج اكتب اسمه بنفس الصيغة): ${JSON.stringify(existing)}\n\n${text ? 'النص:\n"""' + text + '"""\n\n' : ''}${images.length ? 'وارفقت ' + images.length + ' صورة (فاتورة أو قائمة أو بضاعة).\n\n' : ''}أرجع JSON فقط بهذا الشكل:\n{"rows":[{"name":"","category":"","qty":0,"costToman":0,"costIqd":0,"price":0,"code":""}],"currency":"toman","note":""}\n- name: اسم واضح ومختصر بالعربي.\n- category: من التصنيفات المتاحة إذا يناسب، وإلا اقترح تصنيف قصير.\n- qty: الكمية إذا مذكورة وإلا 0.\n- costToman: سعر شراء القطعة بالتومان إذا مذكور بالتومان، وإلا 0. costIqd: سعر شراء القطعة بالدينار إذا مذكور بالدينار، وإلا 0.\n- price: سعر البيع بالدينار إذا مذكور، وإلا 0.\n- إذا السعر المذكور للمجموع مو للقطعة، اقسمه على الكمية.\n- currency: "toman" أو "iqd" حسب عملة الشراء الغالبة.\n- note: أي ملاحظة مهمة (مثلاً رقم ما واضح) بجملة قصيرة، أو فارغ.`;
+  // الصور الإضافية ترسل كأجزاء منفصلة عبر عدة طلبات إذا أكثر من وحدة
+  const first = await ask({ system, prompt, image: toImagePart(images[0]), json: true });
+  const out = parseJson(first);
+  let rows = out.rows || [];
+  for (const img of images.slice(1)) {
+    try {
+      const more = parseJson(await ask({ system, prompt: prompt.replace(/وارفقت \d+ صورة/, 'وارفقت صورة'), image: toImagePart(img), json: true }));
+      rows = rows.concat(more.rows || []);
+    } catch {}
+  }
+  const num = (v) => Math.max(0, Number(String(v ?? '').replace(/[^\d.]/g, '')) || 0);
+  rows = rows
+    .filter((r) => r && String(r.name || '').trim())
+    .map((r) => ({ name: String(r.name).trim(), category: String(r.category || '').trim(), qty: num(r.qty), costToman: num(r.costToman), costIqd: num(r.costIqd), price: num(r.price), code: String(r.code || '').trim() }));
+  return { rows, currency: out.currency === 'iqd' ? 'iqd' : 'toman', note: out.note || '' };
+}
+
+// اقتراح اسم وتصنيف ووصف لمنتج من صورته.
+export async function productFromPhoto(photo, data) {
+  const cats = data.settings.categories || [];
+  const system = 'أنت تساعد صاحب متجر عراقي يبيع ديكور وسيراميك وأمور دينية بتسمية منتجاته.';
+  const prompt = `شوف صورة المنتج واقترح:\n{"name":"","category":"","notes":""}\n- name: اسم قصير وواضح بالعربي (مثل: صحن سيراميك بنقش فيروزي).\n- category: واحد من: ${cats.join('، ')}، أو تصنيف قصير جديد إذا ما يناسب.\n- notes: وصف قصير للمادة واللون والقياس التقريبي.\nأرجع JSON فقط.`;
+  return parseJson(await ask({ system, prompt, image: toImagePart(photo), json: true }));
+}

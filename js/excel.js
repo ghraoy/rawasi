@@ -102,3 +102,12 @@ export function downloadTemplate() {
     ],
   });
 }
+
+// تحويل أول ورقة لنص (للملفات اللي أعمدتها مو مرتبة، يقرأها الذكاء الاصطناعي).
+export async function sheetToText(file, maxRows = 300) {
+  const XLSX = await loadXLSX();
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' }).filter((r) => r.some((c) => String(c).trim()));
+  return rows.slice(0, maxRows).map((r) => r.join(' | ')).join('\n');
+}

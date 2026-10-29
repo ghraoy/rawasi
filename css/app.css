@@ -456,3 +456,9 @@ details.card > summary { cursor: pointer; list-style: none; display: flex; align
 details.card > summary::-webkit-details-marker { display: none; }
 details.card > summary b { display: flex; align-items: center; gap: 6px; font-family: var(--display); font-weight: 600; }
 details.card:not([open]) > :not(summary) { display: none; }
+.ai-thumb { position: relative; width: 72px; height: 72px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.ai-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ai-thumb .icon-btn { position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; background: rgba(255,255,255,.9); }
+a.tab { display: inline-flex; align-items: center; justify-content: center; }
+.photo-ai { width: 112px; padding: 0 6px; font-size: 12px; }
+@media (max-width: 480px) { .photo-ai { width: 100%; } }

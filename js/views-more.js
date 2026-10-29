@@ -35,6 +35,7 @@ function aiView() {
   ${ready ? '' : `<p class="note note-warn">${icon('lock', 18)} <span>المساعد يشتغل بحساب Google. اضغط الزر مرة وحدة وخلص.</span></p><button class="btn btn-google" type="button" data-act="connectGoogle">${icon('spark', 18)}<span>ربط بحساب Google</span></button>`}
   <div class="tabs" role="tablist">
     ${[['parse', 'حجز من رسالة'], ['caption', 'كابشن لمنتج'], ['ask', 'اسأل عن متجرك']].map(([k, l]) => `<button type="button" role="tab" aria-selected="${k === mode}" class="tab${k === mode ? ' on' : ''}" data-act="aiMode" data-v="${k}">${l}</button>`).join('')}
+    <a class="tab" href="#/import">إضافة منتجات</a>
   </div>
 
   ${mode === 'parse' ? `
