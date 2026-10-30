@@ -90,7 +90,21 @@ export function disconnectGoogle() {
 }
 
 let syncing = null;
-// interactive: true لما المستخدم ضغط زر (نقدر نفتح نافذة Google إذا انتهت الجلسة).
+let applyingRemote = false;
+
+// بصمة مختصرة للبيانات حتى نعرف إذا المزامنة جابت شي جديد
+function signature(d) {
+  const parts = [d.settings?.updatedAt || '', d.meta?.bookingSeq || 0];
+  for (const c of store.COLLECTIONS) {
+    const list = d[c] || [];
+    let max = '';
+    for (const r of list) if ((r.updatedAt || '') > max) max = r.updatedAt;
+    parts.push(c + ':' + list.length + ':' + max);
+  }
+  return parts.join('|');
+}
+
+// interactive: true لما المستخدم ضغط (نقدر نفتح نافذة Google إذا انتهت الجلسة).
 export function syncNow({ quiet = false, interactive = false } = {}) {
   if (syncing) return syncing;
   if (!isGoogle()) return Promise.resolve(false);
@@ -99,22 +113,34 @@ export function syncNow({ quiet = false, interactive = false } = {}) {
     return Promise.resolve(false);
   }
   if (!gdrive.hasToken() && !interactive) {
-    setStatus({ state: 'needsAuth', message: 'اضغط للمزامنة' });
+    setStatus({ state: 'needsAuth', message: 'اضغط بأي مكان للمزامنة' });
     return Promise.resolve(false);
   }
-  setStatus({ state: 'syncing', message: 'جاري المزامنة…' });
+  setStatus({ ...status, state: 'syncing', message: 'جاري المزامنة…', changed: false });
   syncing = (async () => {
     try {
       if (!gdrive.hasToken()) await gdrive.signIn({ hint: googleEmail().includes('@') ? googleEmail() : undefined });
       const remoteMerged = await gdrive.sync(buildSheets);
       // نعيد الدمج مع النسخة المحلية الحالية حتى ما تضيع أي تعديلات صارت أثناء الطلب.
-      store.replaceAll(store.merge(store.getData(), remoteMerged));
+      const before = signature(store.getData());
+      const merged = store.merge(store.getData(), remoteMerged);
+      const changed = signature(merged) !== before;
+      if (changed) {
+        applyingRemote = true;
+        try {
+          store.replaceAll(merged);
+        } finally {
+          applyingRemote = false;
+        }
+      } else {
+        store.markClean();
+      }
       const when = new Date().toISOString();
       setConfig({ lastSync: when });
-      setStatus({ state: 'ok', message: 'متزامن', at: when });
+      setStatus({ state: 'ok', message: 'متزامن', at: when, changed });
       return true;
     } catch (e) {
-      setStatus({ state: gdrive.hasToken() ? 'error' : 'needsAuth', message: e.message });
+      setStatus({ state: gdrive.hasToken() ? 'error' : 'needsAuth', message: e.message, changed: false });
       if (!quiet) throw e;
       return false;
     } finally {
@@ -124,21 +150,40 @@ export function syncNow({ quiet = false, interactive = false } = {}) {
   return syncing;
 }
 
-// مزامنة تلقائية ما دامت جلسة Google فعالة: بعد كل تعديل بعشر ثواني، وعند الخروج من التطبيق.
+// مزامنة تلقائية ومستمرة:
+// - بعد كل تعديل بثواني قليلة
+// - كل دقيقة تجيب التعديلات من الأجهزة الثانية (لما التطبيق مفتوح)
+// - لما ترجع للتطبيق، ولما يرجع الإنترنت
+// - إذا جلسة Google انتهت، تتجدد تلقائياً مع أول ضغطة بأي مكان بالتطبيق
 let timer = null;
+let lastAuthTry = 0;
 export function startAuto() {
   gdrive.preload();
   store.subscribe(() => {
-    if (!isGoogle() || !getConfig().auto) return;
+    if (applyingRemote || !isGoogle() || !getConfig().auto) return;
     clearTimeout(timer);
-    timer = setTimeout(() => syncNow({ quiet: true }), 10000);
+    timer = setTimeout(() => syncNow({ quiet: true }), 4000);
   });
-  if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden' && store.isDirty() && isGoogle()) syncNow({ quiet: true });
-    });
-    window.addEventListener('online', () => isGoogle() && syncNow({ quiet: true }));
-  }
+  if (typeof document === 'undefined') return;
+  document.addEventListener('visibilitychange', () => {
+    if (!isGoogle()) return;
+    if (document.visibilityState === 'visible') syncNow({ quiet: true });
+    else if (store.isDirty()) syncNow({ quiet: true });
+  });
+  window.addEventListener('online', () => isGoogle() && syncNow({ quiet: true }));
+  window.addEventListener('pagehide', () => isGoogle() && store.isDirty() && syncNow({ quiet: true }));
+  setInterval(() => {
+    if (isGoogle() && getConfig().auto && document.visibilityState === 'visible' && gdrive.hasToken()) syncNow({ quiet: true });
+  }, 60000);
+  // تجديد الجلسة مع ضغطة المستخدم (المتصفح يسمح بنافذة Google بس بعد ضغطة)
+  document.addEventListener('click', () => {
+    if (!isGoogle() || syncing) return;
+    if (gdrive.tokenMinutesLeft() > 8) return;
+    if (Date.now() - lastAuthTry < 90000) return;
+    lastAuthTry = Date.now();
+    const hint = googleEmail().includes('@') ? googleEmail() : undefined;
+    gdrive.signIn({ hint, force: true }).then(() => syncNow({ quiet: true })).catch(() => {});
+  }, true);
   if (isGoogle()) setTimeout(() => syncNow({ quiet: true }), 800);
 }
 

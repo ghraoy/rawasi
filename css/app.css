@@ -473,3 +473,21 @@ a.tab { display: inline-flex; align-items: center; justify-content: center; }
 .photo-add:hover { border-color: var(--teal); color: var(--teal); }
 .setup-steps { margin: 0; padding-inline-start: 22px; display: grid; gap: 10px; color: var(--ink-2); }
 .setup-steps .btn { margin-top: 6px; }
+
+/* ---------- شارة المزامنة بكل الصفحات ---------- */
+.sync-badge {
+  position: fixed; z-index: 30; top: calc(10px + env(safe-area-inset-top)); left: 12px;
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 30px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line);
+  background: rgba(255,255,255,.92); backdrop-filter: blur(6px);
+  font-size: 11px; font-weight: 600; cursor: pointer; color: var(--muted);
+}
+.sync-badge.ok { color: var(--teal); }
+.sync-badge.busy { color: var(--teal); }
+.sync-badge.busy .ic { animation: spin 1s linear infinite; }
+.sync-badge.err { color: var(--red-ink); background: var(--red-soft); }
+.sync-badge.warn { color: var(--amber-ink); background: var(--amber-soft); }
+.sync-badge[hidden] { display: none; }
+.home-head .sync-chip:not([data-act=connectGoogle]) { display: none; }
+body.has-sync .page-head { padding-inline-end: 92px; }
+@media (min-width: 960px) { .sync-badge { top: 18px; left: 20px; } }

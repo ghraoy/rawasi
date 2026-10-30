@@ -20,7 +20,7 @@ let tokenClient = null;
 let gisLoading = null;
 
 try {
-  const t = JSON.parse(sessionStorage.getItem('rawasi.gtoken') || 'null');
+  const t = JSON.parse(localStorage.getItem('rawasi.gtoken') || 'null');
   if (t && t.exp > Date.now() + 60000) {
     token = t.token;
     tokenExp = t.exp;
@@ -29,6 +29,11 @@ try {
 
 export function hasToken() {
   return !!token && tokenExp > Date.now() + 60000;
+}
+
+// كم دقيقة باقية على انتهاء جلسة Google (حتى نجددها قبل ما تنتهي)
+export function tokenMinutesLeft() {
+  return token ? Math.max(0, (tokenExp - Date.now()) / 60000) : 0;
 }
 
 function loadGis() {
@@ -67,7 +72,7 @@ function initClient() {
       token = resp.access_token;
       tokenExp = Date.now() + (Number(resp.expires_in) || 3600) * 1000;
       try {
-        sessionStorage.setItem('rawasi.gtoken', JSON.stringify({ token, exp: tokenExp }));
+        localStorage.setItem('rawasi.gtoken', JSON.stringify({ token, exp: tokenExp }));
       } catch {}
       p.resolve(token);
     },
@@ -81,8 +86,8 @@ function initClient() {
 }
 
 // لازم تنطلب من ضغطة زر حتى ما يمنعها المتصفح.
-export async function signIn({ hint } = {}) {
-  if (hasToken()) return token;
+export async function signIn({ hint, force = false } = {}) {
+  if (hasToken() && !force) return token;
   await loadGis();
   initClient();
   return new Promise((resolve, reject) => {
@@ -95,7 +100,7 @@ export function signOut() {
   if (token && globalThis.google?.accounts?.oauth2) google.accounts.oauth2.revoke(token, () => {});
   token = null;
   tokenExp = 0;
-  sessionStorage.removeItem('rawasi.gtoken');
+  localStorage.removeItem('rawasi.gtoken');
 }
 
 async function api(path, { method = 'GET', body, headers = {}, raw = false } = {}) {
@@ -108,7 +113,7 @@ async function api(path, { method = 'GET', body, headers = {}, raw = false } = {
   if (res.status === 401) {
     token = null;
     tokenExp = 0;
-    sessionStorage.removeItem('rawasi.gtoken');
+    localStorage.removeItem('rawasi.gtoken');
     throw new Error('انتهت جلسة Google. اضغط مزامنة مرة ثانية.');
   }
   if (!res.ok) {
@@ -248,7 +253,7 @@ export async function gemini({ system, prompt, image, json = false }) {
     if (res.status === 401) {
       token = null;
       tokenExp = 0;
-      sessionStorage.removeItem('rawasi.gtoken');
+      localStorage.removeItem('rawasi.gtoken');
       throw new Error('انتهت جلسة Google. اضغط مرة ثانية.');
     }
     lastErr = new Error('Gemini: ' + (out.error?.message || 'HTTP ' + res.status));

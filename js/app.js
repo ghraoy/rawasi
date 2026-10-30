@@ -126,19 +126,50 @@ async function start() {
     const nav = document.getElementById('nav');
     if (nav) nav.innerHTML = navHtml();
   });
-  let lastSyncState = '';
+  // شارة المزامنة تظهر بكل الصفحات وتتحدث بدون ما تعيد رسم الشاشة
+  const badge = document.createElement('button');
+  badge.type = 'button';
+  badge.id = 'syncBadge';
+  badge.setAttribute('data-act', 'syncNow');
+  document.body.appendChild(badge);
+  const paintBadge = (s) => {
+    const on = sync.isGoogle();
+    badge.hidden = !on;
+    document.body.classList.toggle('has-sync', on);
+    if (!on) return;
+    const map = { syncing: ['busy', 'refresh', 'مزامنة…'], ok: ['ok', 'cloudOk', 'متزامن'], error: ['err', 'cloudOff', 'فشلت'], offline: ['off', 'cloudOff', 'بدون نت'], needsAuth: ['warn', 'refresh', 'مزامنة'] };
+    const [cls, ic, label] = map[s.state] || map.ok;
+    badge.className = 'sync-badge ' + cls;
+    badge.title = s.message || label;
+    badge.setAttribute('aria-label', 'المزامنة: ' + label);
+    badge.innerHTML = icon(ic, 16) + '<span>' + label + '</span>';
+  };
+  paintBadge(sync.getStatus());
   sync.onStatus((s) => {
-    // بعد انتهاء المزامنة نعيد الرسم حتى تظهر البيانات الجديدة، إلا إذا المستخدم بنص نموذج
+    paintBadge(s);
+    // نعيد رسم الشاشة بس إذا وصلت بيانات جديدة من جهاز ثاني، ومو بنص كتابة أو نموذج
+    if (!s.changed) return;
     const typing = document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
-    const formRoute = ['booking', 'lot', 'batch', 'product'].includes(state.route.name);
-    if (s.state !== lastSyncState && !typing && !(formRoute && s.state === 'ok')) rerender();
-    lastSyncState = s.state;
+    const formRoute = ['booking', 'lot', 'batch', 'product', 'import'].includes(state.route.name);
+    if (!typing && !formRoute) rerender();
   });
   onHash();
   sync.startAuto();
   web.startAuto(store);
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    // التحديثات توصل تلقائياً: نفحص وجود نسخة جديدة عند الفتح وكل ما ترجع للتطبيق
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
+      document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && reg.update().catch(() => {}));
+      setInterval(() => reg.update().catch(() => {}), 30 * 60000);
+    }).catch(() => {});
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return;
+      const typing = document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName);
+      if (typing) return;
+      reloaded = true;
+      location.reload();
+    });
   }
 }
 

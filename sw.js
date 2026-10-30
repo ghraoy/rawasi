@@ -1,5 +1,5 @@
 // يخلي التطبيق يفتح حتى بدون إنترنت. غيّر رقم النسخة عند كل تحديث.
-const CACHE = 'rawasi-v10';
+const CACHE = 'rawasi-v11';
 const ASSETS = [
   './',
   './index.html',
@@ -43,7 +43,7 @@ self.addEventListener('fetch', (e) => {
   if (url.origin === location.origin) {
     // ملفات التطبيق: الشبكة أولاً حتى توصل التحديثات، والنسخة المحفوظة إذا ماكو إنترنت
     e.respondWith(
-      fetch(e.request)
+      fetch(e.request, { cache: 'no-cache' })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(e.request, copy));
