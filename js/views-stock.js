@@ -487,7 +487,7 @@ register({
           const names = new Set(store.all('products').map((p) => p.name.trim()));
           if (rows.every((r) => names.has(r.name))) {
             opt.mode = 'products';
-            state.drafts.aiProdNote = 'المنتجات موجودة سابقاً، راح أضيف الصور الناقصة فقط بدون ما أكرر الكميات.';
+            state.drafts.aiProdNote = 'المنتجات موجودة سابقاً، راح أحدّث الصور فقط بدون ما أكرر الكميات.';
           }
           return rerender();
         }
@@ -703,8 +703,8 @@ register({
         if (!p) {
           p = store.put('products', { name: r.name.trim(), category: r.category || settings().categories[0] || '', price: n(r.price), code: r.code || '', minStock: '', notes: '', photo: r.photo || '' });
           byName.set(p.name, p);
-        } else if (n(r.price) > 0 || r.code || r.category || (r.photo && !p.photo)) {
-          p = store.put('products', { ...p, price: n(r.price) > 0 ? n(r.price) : p.price, code: r.code || p.code, category: r.category || p.category, photo: p.photo || r.photo || '' });
+        } else if (n(r.price) > 0 || r.code || r.category || r.photo) {
+          p = store.put('products', { ...p, price: n(r.price) > 0 ? n(r.price) : p.price, code: r.code || p.code, category: r.category || p.category, photo: r.photo || p.photo || '' });
         }
         if (v.mode === 'lot' && n(r.qty) > 0) lines.push({ productId: p.id, qty: n(r.qty), costToman: v.currency === 'iqd' ? 0 : n(r.costToman), costIqd: v.currency === 'iqd' ? n(r.costIqd || r.costToman) : (n(r.costToman) ? '' : n(r.costIqd) || '') });
       }
