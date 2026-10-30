@@ -192,9 +192,11 @@ function card(p, i = 0) {
       <a href="${href}" tabindex="-1" aria-hidden="true">${photo(p, { eager: i < 4 })}</a>
       <div class="tags">${badges(p)}</div>
       <button type="button" class="fav${fav ? ' on' : ''}" data-fav="${esc(p.id)}" aria-pressed="${fav}" aria-label="${fav ? 'شيل من المفضلة' : 'أضف للمفضلة'}: ${esc(p.name)}">${icon('heart', 18)}</button>
-      ${p.status === 'out' ? '' : `<button type="button" class="quick" data-add="${esc(p.id)}" aria-label="أضف ${esc(p.name)} للسلة">${icon('plus', 18)}</button>`}
     </div>
-    <a class="card-body" href="${href}"><h3 class="card-name">${esc(p.name)}</h3><div class="card-price">${priceHtml(p)}</div></a>
+    <div class="card-body">
+      <a class="card-name" href="${href}">${esc(p.name)}</a>
+      <div class="card-foot"><div class="card-price">${priceHtml(p)}</div>${p.status === 'out' ? '' : `<button type="button" class="quick" data-add="${esc(p.id)}" aria-label="أضف ${esc(p.name)} للسلة">${icon('plus', 18)}</button>`}</div>
+    </div>
   </article>`;
 }
 const grid = (list) => `<div class="grid">${list.map(card).join('')}</div>`;
@@ -260,14 +262,14 @@ function homeHtml() {
 
   const heroHtml = `<section class="hero" aria-labelledby="heroTitle">
       <div class="hero-text">
-        <h1 id="heroTitle" class="hero-title">${esc(s.name || 'متجر رواسي')}</h1>
-        <p class="hero-tag">${esc(s.tagline || '')}</p>
-        <p class="hero-meta">${available ? `${available} قطعة متوفرة الآن` : 'القطع الجديدة تنزل قريباً'}${s.deliveryNote ? `، ${esc(s.deliveryNote)}` : ''}</p>
-        <div class="hero-cta"><a class="btn" href="#all" data-scroll="all">تصفّح القطع</a>${s.instagram ? `<a class="btn btn-line" href="https://instagram.com/${esc(s.instagram)}" target="_blank" rel="noopener">${icon('ig', 18)}<span>@${esc(s.instagram)}</span></a>` : ''}</div>
+        <h1 id="heroTitle" class="hero-title">${esc(s.tagline || s.name || 'متجر رواسي')}</h1>
+        <p class="hero-tag">${esc(s.about || '')}</p>
+        <div class="hero-cta"><a class="btn btn-buy" href="#all" data-scroll="all">تصفّح القطع</a>${s.instagram ? `<a class="btn btn-line" href="https://instagram.com/${esc(s.instagram)}" target="_blank" rel="noopener">${icon('ig', 18)}<span>@${esc(s.instagram)}</span></a>` : ''}</div>
+        <p class="hero-meta"><span><b>${available}</b> قطعة متوفرة</span>${s.deliveryNote ? `<span>${esc(s.deliveryNote)}</span>` : ''}</p>
       </div>
-      <a class="hero-niche" ${hero ? `href="#/p/${encodeURIComponent(hero.id)}" aria-label="${esc(hero.name)}"` : 'aria-hidden="true" tabindex="-1"'}>
-        <div class="arch">${hero ? photo(hero, { eager: true, cls: 'arch-img' }) : ''}</div>
-        ${hero ? `<span class="niche-cap"><b>${esc(hero.name)}</b><span>${money(hero.price)}</span></span>` : ''}
+      <a class="hero-media" ${hero ? `href="#/p/${encodeURIComponent(hero.id)}" aria-label="${esc(hero.name)}"` : 'aria-hidden="true" tabindex="-1"'}>
+        ${hero ? photo(hero, { eager: true, cls: 'hero-img' }) : '<div class="hero-img img-empty"></div>'}
+        ${hero ? `<span class="hero-pill"><b>${esc(hero.name)}</b><span>${money(hero.price)}</span></span>` : ''}
       </a>
     </section>`;
 
@@ -306,12 +308,10 @@ function homeHtml() {
     </div>
   </section>`;
 
-  const ART = { 'سيراميك': 'glaze', 'مخمل': 'velvet', 'دينيات': 'lapis', 'ديكور': 'peach' };
-  const cycle = ['glaze', 'velvet', 'lapis', 'peach'];
-  const catTiles = cats.length > 1 ? `<section class="sec" aria-labelledby="catsT"><div class="sec-head"><h2 id="catsT">تسوّق حسب القسم</h2></div><div class="cats">
-    ${cats.map((c, i) => {
+  const catTiles = cats.length > 1 ? `<section class="sec sec-cats" aria-labelledby="catsT"><div class="sec-head"><h2 id="catsT">الأقسام</h2></div><div class="cats">
+    ${cats.map((c) => {
       const pick = all.find((p) => p.cat === c && p.imgs?.length && p.status !== 'out') || all.find((p) => p.cat === c && p.imgs?.length);
-      return `<button type="button" class="cat cat-${ART[c] || cycle[i % 4]}" data-cat="${esc(c)}"><span class="cat-arch">${pick ? photo(pick, { cls: 'cat-img' }) : ''}</span><b>${esc(c)}</b><small>${counts[c]} قطعة</small></button>`;
+      return `<button type="button" class="cat" data-cat="${esc(c)}"><span class="cat-img">${pick ? photo(pick, { cls: 'cat-photo' }) : ''}</span><b>${esc(c)}</b><small>${counts[c]} قطعة</small></button>`;
     }).join('')}
   </div></section>` : '';
 
