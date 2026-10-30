@@ -9,6 +9,23 @@ import * as sync from './sync.js';
 
 const n = (v) => Number(v) || 0;
 
+// إعادة رسم صفحة المنتج بدون ما تضيع القيم اللي كتبها المستخدم.
+function rerenderKeepForm(form) {
+  const vals = {};
+  if (form) for (const el of form.elements) if (el.name) vals[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+  const openWeb = form?.querySelector('.web-box')?.open;
+  rerender();
+  const nf = document.querySelector('form[data-submit="saveProduct"]');
+  if (!nf) return;
+  for (const [k, v] of Object.entries(vals)) {
+    const el = nf.elements[k];
+    if (!el || el.type === 'file') continue;
+    if (el.type === 'checkbox') el.checked = v;
+    else el.value = v;
+  }
+  if (openWeb) nf.querySelector('.web-box')?.setAttribute('open', '');
+}
+
 function productsSorted() {
   const items = inv().items;
   const q = (ui('prodQ', '') || '').trim().toLowerCase();
@@ -51,6 +68,7 @@ function productsView() {
     <div class="row gap">
       <a class="btn btn-ghost btn-sm" href="#/lots">${icon('truck', 18)}<span>وجبات التجهيز</span></a>
       <a class="btn btn-ghost btn-sm" href="#/import">${icon('spark', 18)}<span>إضافة بالذكاء</span></a>
+      <a class="btn btn-ghost btn-sm" href="#/web">${icon('globe', 18)}<span>الموقع</span></a>
     </div>
   </header>
   <div class="search">
@@ -75,6 +93,7 @@ function productView(id) {
   const p = isNew ? { category: settings().categories[0] || '', minStock: '' } : store.get('products', id);
   if (!p) return emptyState('هذا المنتج غير موجود', '<a class="btn" href="#/products">رجوع للمنتجات</a>');
   const draftPhoto = state.drafts.productPhoto?.id === id ? state.drafts.productPhoto.photo : p.photo;
+  const extraPhotos = state.drafts.productPhotos?.id === id ? state.drafts.productPhotos.list : (p.photos || []);
   const it = isNew ? null : inv().items[p.id];
   const history = isNew ? [] : productCostHistory(data(), p.id);
   const adjustments = isNew ? [] : store.all('adjustments').filter((a) => a.productId === p.id).sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -141,7 +160,24 @@ function productView(id) {
       <label class="field"><span>الكود / الباركود</span><input name="code" value="${esc(p.code || '')}" placeholder="اختياري" dir="ltr"></label>
       <label class="field"><span>تصنيف جديد</span><input name="newCategory" placeholder="فقط إذا اخترت تصنيف جديد"></label>
     </div>
-    <label class="field"><span>ملاحظات</span><textarea name="notes" rows="2" placeholder="القياس، المادة، اللون…">${esc(p.notes || '')}</textarea></label>
+    <label class="field"><span>ملاحظات <small class="muted">داخلية، ما تظهر للزبون</small></span><textarea name="notes" rows="2" placeholder="القياس، المادة، اللون…">${esc(p.notes || '')}</textarea></label>
+    <details class="web-box"${p.webDesc || p.featured || p.compareAt || p.webHide || extraPhotos.length ? ' open' : ''}>
+      <summary><b>${icon('globe', 18)} على الموقع الإلكتروني</b><span class="muted small">${p.webHide ? 'مخفي' : 'ظاهر'}</span></summary>
+      <div class="col gap">
+        <div class="row gap wrap">
+          <label class="check"><input type="checkbox" name="webShow" ${p.webHide ? '' : 'checked'}> <span>إظهار بالموقع</span></label>
+          <label class="check"><input type="checkbox" name="featured" ${p.featured ? 'checked' : ''}> <span>قطعة مميزة (تظهر بواجهة الموقع)</span></label>
+        </div>
+        <label class="field"><span>السعر قبل الخصم <small class="muted">اختياري، يظهر مشطوب مع نسبة الخصم</small></span><input name="compareAt" inputmode="numeric" value="${esc(p.compareAt || '')}" placeholder="مثلاً 30000"></label>
+        <label class="field"><span class="row between"><span>وصف للزبون</span><button type="button" class="link small" data-act="aiWebDesc" data-id="${esc(id)}">${icon('spark', 14)} اكتبه بالذكاء</button></span><textarea name="webDesc" rows="3" placeholder="المادة، اللون، القياس، وين يصير بالبيت…">${esc(p.webDesc || '')}</textarea></label>
+        <div class="field"><span>صور إضافية <small class="muted">حتى 3، من زوايا مختلفة أو بالبيت</small></span>
+          <div class="row gap wrap">
+            ${extraPhotos.map((src, i) => `<div class="ai-thumb"><img src="${esc(src)}" alt="صورة إضافية ${i + 1}"><button type="button" class="icon-btn sm" data-act="removeProductPhoto" data-id="${esc(id)}" data-i="${i}" aria-label="حذف الصورة">${icon('x', 14)}</button></div>`).join('')}
+            ${extraPhotos.length < 3 ? `<label class="photo-add" for="pphotos">${icon('plus', 22)}<span class="sr">إضافة صور</span></label><input id="pphotos" type="file" accept="image/*" multiple class="sr" data-in="productPhotos" data-id="${esc(id)}">` : ''}
+          </div>
+        </div>
+      </div>
+    </details>
     ${isNew ? `<p class="muted small">الكمية والكلفة تنضاف من خلال <a href="#/lot/new">وجبة تجهيز</a>، حتى ينحسب الربح صح.</p>` : ''}
     <div class="row gap">
       <button class="btn grow" type="submit">${icon('check', 18)}<span>حفظ</span></button>
@@ -430,12 +466,17 @@ register({
       if (!f) return;
       const photo = await resizeImage(f);
       state.drafts.productPhoto = { id: el.dataset.id, photo };
-      // نحفظ قيم النموذج الحالية قبل إعادة الرسم
-      const form = el.closest('form');
-      const vals = formData(form);
-      rerender();
-      const nf = document.querySelector('form[data-submit="saveProduct"]');
-      if (nf) for (const [k, v] of Object.entries(vals)) if (nf.elements[k] && typeof v === 'string') nf.elements[k].value = v;
+      rerenderKeepForm(el.closest('form'));
+    },
+    productPhotos: async (el) => {
+      const id = el.dataset.id;
+      const cur = state.drafts.productPhotos?.id === id ? state.drafts.productPhotos.list : (store.get('products', id)?.photos || []);
+      const files = [...(el.files || [])].slice(0, 3 - cur.length);
+      if (!files.length) return;
+      const added = [];
+      for (const f of files) added.push(await resizeImage(f));
+      state.drafts.productPhotos = { id, list: [...cur, ...added] };
+      rerenderKeepForm(el.closest('form'));
     },
     lotField: (el) => {
       const id = state.route.id || 'new';
@@ -620,6 +661,32 @@ register({
         document.querySelector('.table-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     },
+    removeProductPhoto: (el) => {
+      const id = el.dataset.id;
+      const cur = state.drafts.productPhotos?.id === id ? state.drafts.productPhotos.list : (store.get('products', id)?.photos || []);
+      state.drafts.productPhotos = { id, list: cur.filter((_, i) => i !== Number(el.dataset.i)) };
+      rerenderKeepForm(el.closest('form'));
+    },
+    aiWebDesc: async (el) => {
+      const form = el.closest('form');
+      const v = formData(form);
+      if (!v.name) return toast('اكتب اسم المنتج أولاً', 'err');
+      const id = el.dataset.id;
+      const photo = state.drafts.productPhoto?.id === id ? state.drafts.productPhoto.photo : store.get('products', id)?.photo;
+      const label = el.innerHTML;
+      el.disabled = true;
+      el.textContent = 'جاري الكتابة…';
+      try {
+        const text = await ai.webDescription({ name: v.name, category: v.category === '__new' ? v.newCategory : v.category, notes: v.notes }, { photo });
+        form.elements.webDesc.value = text;
+        toast('انكتب الوصف، راجعه وعدّله إذا تحب');
+      } catch (e) {
+        toast(e.message || 'ما قدرت أكتب الوصف', 'err');
+      } finally {
+        el.disabled = false;
+        el.innerHTML = label;
+      }
+    },
     aiProductFromPhoto: async (el) => {
       const id = el.dataset.id;
       const photo = state.drafts.productPhoto?.id === id ? state.drafts.productPhoto.photo : store.get('products', id)?.photo;
@@ -666,8 +733,13 @@ register({
       if (category && !settings().categories.includes(category)) store.setSettings({ categories: [...settings().categories, category] });
       const base = id ? store.get('products', id) : {};
       const photo = state.drafts.productPhoto?.id === (id || 'new') ? state.drafts.productPhoto.photo : base.photo;
-      const rec = store.put('products', { ...base, name: v.name, category, price: n(v.price), minStock: v.minStock === '' ? '' : n(v.minStock), code: v.code, notes: v.notes, photo: photo || '' });
+      const photos = state.drafts.productPhotos?.id === (id || 'new') ? state.drafts.productPhotos.list : base.photos || [];
+      const rec = store.put('products', {
+        ...base, name: v.name, category, price: n(v.price), minStock: v.minStock === '' ? '' : n(v.minStock), code: v.code, notes: v.notes, photo: photo || '',
+        photos, webHide: !v.webShow, featured: !!v.featured, compareAt: n(v.compareAt) || '', webDesc: v.webDesc || '',
+      });
       state.drafts.productPhoto = null;
+      state.drafts.productPhotos = null;
       toast('انحفظ ✓');
       nav('#/product/' + rec.id);
     },

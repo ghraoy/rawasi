@@ -5,6 +5,8 @@ import { icon, esc, toast } from './ui.js';
 import * as sync from './sync.js';
 import './views-stock.js';
 import './views-sales.js';
+import './views-web.js';
+import * as web from './web.js';
 import { hashPin } from './views-more.js';
 
 const NAV = [
@@ -12,10 +14,11 @@ const NAV = [
   { name: 'products', label: 'المنتجات', icon: 'box', match: ['products', 'product', 'lots', 'lot', 'import'] },
   { name: 'bookings', label: 'الحجوزات', icon: 'clip', match: ['bookings', 'booking'] },
   { name: 'batches', label: 'الدفعات', icon: 'layers', match: ['batches', 'batch'] },
-  { name: 'more', label: 'المزيد', icon: 'menu', match: ['more', 'ai', 'customers', 'expenses', 'reports', 'settings'] },
+  { name: 'more', label: 'المزيد', icon: 'menu', match: ['more', 'ai', 'customers', 'expenses', 'reports', 'settings', 'web'] },
 ];
 const DESKTOP_EXTRA = [
   { name: 'ai', label: 'المساعد الذكي', icon: 'spark' },
+  { name: 'web', label: 'الموقع الإلكتروني', icon: 'globe' },
   { name: 'reports', label: 'التقارير', icon: 'chart' },
   { name: 'customers', label: 'الزبائن', icon: 'users' },
   { name: 'expenses', label: 'المصاريف', icon: 'wallet' },
@@ -133,6 +136,7 @@ async function start() {
   });
   onHash();
   sync.startAuto();
+  web.startAuto(store);
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }

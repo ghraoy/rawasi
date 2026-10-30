@@ -88,3 +88,15 @@ export async function productFromPhoto(photo, data) {
   const prompt = `شوف صورة المنتج واقترح:\n{"name":"","category":"","notes":""}\n- name: اسم قصير وواضح بالعربي (مثل: صحن سيراميك بنقش فيروزي).\n- category: واحد من: ${cats.join('، ')}، أو تصنيف قصير جديد إذا ما يناسب.\n- notes: وصف قصير للمادة واللون والقياس التقريبي.\nأرجع JSON فقط.`;
   return parseJson(await ask({ system, prompt, image: toImagePart(photo), json: true }));
 }
+
+// وصف قصير للمنتج يظهر بموقع المتجر.
+export async function webDescription(product, { photo } = {}) {
+  const system = 'أنت تكتب وصف منتجات لموقع متجر عراقي اسمه متجر رواسي، يبيع سيراميك وديكور وأمور دينية للرجال والنساء.';
+  const prompt = `اكتب وصف لهذا المنتج حتى يظهر بصفحته بالموقع:\nالاسم: ${product.name}\nالتصنيف: ${product.category || ''}\n${product.notes ? 'معلومات من صاحب المتجر (القياس، المادة…): ' + product.notes : ''}\n\nالقواعد:\n- جملتين إلى ثلاث، عربي بسيط وواضح مع لمسة عراقية خفيفة.\n- اذكر المادة واللون والاستخدام أو المكان المناسب بالبيت، وإذا تصلح هدية.\n- اذكر القياس فقط إذا مذكور بالمعلومات، ولا تخترع أرقام أو مواصفات.\n- بدون سعر، بدون إيموجي، بدون هاشتاكات، بدون مبالغة.\n- أرجع نص الوصف فقط.`;
+  let image;
+  if (photo && photo.startsWith('data:')) {
+    const [head, b64] = photo.split(',');
+    image = { mimeType: head.slice(5, head.indexOf(';')), data: b64 };
+  }
+  return (await ask({ system, prompt, image })).trim();
+}

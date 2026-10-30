@@ -1,5 +1,5 @@
 // يخلي التطبيق يفتح حتى بدون إنترنت. غيّر رقم النسخة عند كل تحديث.
-const CACHE = 'rawasi-v9';
+const CACHE = 'rawasi-v10';
 const ASSETS = [
   './',
   './index.html',
@@ -16,6 +16,8 @@ const ASSETS = [
   './js/views-stock.js',
   './js/views-sales.js',
   './js/views-more.js',
+  './js/views-web.js',
+  './js/web.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -36,6 +38,8 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   // طلبات Google Script ما تنحفظ أبداً
   if (url.hostname.endsWith('google.com') || url.hostname.endsWith('googleusercontent.com')) return;
+  // موقع المتجر (مجلد shop) مستقل عن التطبيق، فما نحفظه هنا
+  if (url.origin === location.origin && url.pathname.includes('/shop/')) return;
   if (url.origin === location.origin) {
     // ملفات التطبيق: الشبكة أولاً حتى توصل التحديثات، والنسخة المحفوظة إذا ماكو إنترنت
     e.respondWith(

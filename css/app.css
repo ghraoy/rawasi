@@ -462,3 +462,14 @@ details.card:not([open]) > :not(summary) { display: none; }
 a.tab { display: inline-flex; align-items: center; justify-content: center; }
 .photo-ai { width: 112px; padding: 0 6px; font-size: 12px; }
 @media (max-width: 480px) { .photo-ai { width: 100%; } }
+
+/* ---------- الموقع الإلكتروني ---------- */
+.web-box { border: 1px solid var(--line); border-radius: 12px; padding: 0 14px; background: var(--surface-2); }
+.web-box[open] { padding-bottom: 14px; }
+.web-box summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 48px; cursor: pointer; list-style: none; }
+.web-box summary::-webkit-details-marker { display: none; }
+.web-box summary b { display: flex; align-items: center; gap: 6px; }
+.photo-add { width: 76px; height: 76px; border: 1.5px dashed var(--sand-dark); border-radius: 12px; display: grid; place-items: center; color: var(--muted); cursor: pointer; background: var(--surface); }
+.photo-add:hover { border-color: var(--teal); color: var(--teal); }
+.setup-steps { margin: 0; padding-inline-start: 22px; display: grid; gap: 10px; color: var(--ink-2); }
+.setup-steps .btn { margin-top: 6px; }
