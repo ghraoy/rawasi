@@ -1,5 +1,5 @@
 // يخلي التطبيق يفتح حتى بدون إنترنت. غيّر رقم النسخة عند كل تحديث.
-const CACHE = 'rawasi-v5';
+const CACHE = 'rawasi-v6';
 const ASSETS = [
   './',
   './index.html',

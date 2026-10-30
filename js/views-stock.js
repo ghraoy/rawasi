@@ -306,10 +306,10 @@ function importView() {
     <h2>${icon('spark', 20)} بالذكاء الاصطناعي</h2>
     <p class="muted small">الصق قائمة منتجات بأي شكل (رسالة المورد، أسعار، جدول منسوخ)، أو صوّر الفاتورة أو قائمة الأسعار أو البضاعة. المساعد يرتبها لك وتراجعها قبل الحفظ.</p>
     <label class="field"><span class="sr">النص</span><textarea id="aiProdText" rows="5" placeholder="مثلاً: صحن فيروزي 12 قطعة سعر 5 مليون تومان، مزهرية عاجية 8 قطع 7 مليون، نبيعها 25 و 35 ألف…">${esc(state.drafts.aiProdText || '')}</textarea></label>
-    ${(state.drafts.aiProdImages || []).length ? `<div class="row gap wrap">${state.drafts.aiProdImages.map((src, i) => `<div class="ai-thumb"><img src="${esc(src)}" alt="صورة ${i + 1}"><button type="button" class="icon-btn sm" data-act="aiProdRemoveImg" data-i="${i}" aria-label="حذف الصورة">${icon('x', 14)}</button></div>`).join('')}</div>` : ''}
+    ${(state.drafts.aiProdImages || []).length ? `<div class="row gap wrap">${state.drafts.aiProdImages.map((src, i) => `<div class="ai-thumb">${src.startsWith('data:application/pdf') ? `<div class="thumb-empty" style="width:100%;height:100%;background:var(--red-soft);color:var(--red-ink);font-weight:700">PDF</div>` : `<img src="${esc(src)}" alt="صورة ${i + 1}">`}<button type="button" class="icon-btn sm" data-act="aiProdRemoveImg" data-i="${i}" aria-label="حذف الصورة">${icon('x', 14)}</button></div>`).join('')}</div>` : ''}
     <div class="row gap wrap">
-      <label class="btn btn-ghost" for="aiProdImg">${icon('camera', 18)}<span>صورة / فاتورة</span></label>
-      <input id="aiProdImg" class="sr" type="file" accept="image/*" multiple data-in="aiProdImg">
+      <label class="btn btn-ghost" for="aiProdImg">${icon('camera', 18)}<span>صورة / فاتورة / PDF</span></label>
+      <input id="aiProdImg" class="sr" type="file" accept="image/*,application/pdf" multiple data-in="aiProdImg">
       <button class="btn grow" type="button" data-act="aiExtractProducts" ${state.ui.aiBusy ? 'disabled' : ''}>${state.ui.aiBusy ? '<span class="spin"></span><span>جاري الترتيب…</span>' : icon('spark', 18) + '<span>رتّبها بالذكاء</span>'}</button>
     </div>
     ${sync.aiReady() ? '' : '<p class="small muted">يحتاج ربط حساب Google (من الإعدادات أو زر المزامنة بالرئيسية).</p>'}
@@ -321,14 +321,14 @@ function importView() {
       <label class="btn btn-dashed grow" for="xfile">${icon('upload', 18)}<span>اختيار ملف</span></label>
       <button class="btn btn-ghost" data-act="downloadTemplate">${icon('download', 18)}<span>النموذج</span></button>
     </div>
-    <input id="xfile" class="sr" type="file" accept=".xlsx,.xls,.csv" data-in="importFile">
+    <input id="xfile" class="sr" type="file" accept=".xlsx,.xls,.csv,.json" data-in="importFile">
   </section>
   ${state.drafts.aiProdNote ? `<p class="note">${icon('spark', 18)} <span>${esc(state.drafts.aiProdNote)}</span></p>` : ''}
   ${rows ? `
   <section class="card">
     <div class="row between"><h2>معاينة (${fmtNum(rows.length)} صف)</h2><button class="link" data-act="importClear">إلغاء</button></div>
     <div class="table-wrap"><table class="table"><thead><tr><th>المنتج</th><th>الحالة</th><th>الكمية</th><th>شراء تومان</th><th>شراء دينار</th><th>البيع</th></tr></thead><tbody>
-    ${rows.map((r) => `<tr><td>${esc(r.name)}<div class="muted small">${esc(r.category)}</div></td><td>${byName.has(r.name.trim()) ? '<span class="chip chip-ok">موجود</span>' : '<span class="chip chip-low">جديد</span>'}</td><td>${fmtNum(r.qty)}</td><td>${r.costToman ? fmtNum(r.costToman) : '—'}</td><td>${r.costIqd ? fmtNum(r.costIqd) : '—'}</td><td>${r.price ? fmtNum(r.price) : '—'}</td></tr>`).join('')}
+    ${rows.map((r) => `<tr><td><div class="row gap">${r.photo ? `<img class="thumb" src="${esc(r.photo)}" alt="" style="width:40px;height:40px;border-radius:8px">` : ''}<div>${esc(r.name)}<div class="muted small">${esc(r.category)}</div></div></div></td><td>${byName.has(r.name.trim()) ? '<span class="chip chip-ok">موجود</span>' : '<span class="chip chip-low">جديد</span>'}</td><td>${fmtNum(r.qty)}</td><td>${r.costToman ? fmtNum(r.costToman) : '—'}</td><td>${r.costIqd ? fmtNum(r.costIqd) : '—'}</td><td>${r.price ? fmtNum(r.price) : '—'}</td></tr>`).join('')}
     </tbody></table></div>
   </section>
   <form class="card form" data-submit="importApply">
@@ -464,7 +464,8 @@ register({
       const files = [...(el.files || [])].slice(0, 4);
       if (!files.length) return;
       state.drafts.aiProdText = document.getElementById('aiProdText')?.value || '';
-      state.drafts.aiProdImages = (state.drafts.aiProdImages || []).concat(await Promise.all(files.map((f) => resizeImage(f, 1400, 0.82)))).slice(0, 4);
+      const read = (f) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+      state.drafts.aiProdImages = (state.drafts.aiProdImages || []).concat(await Promise.all(files.map((f) => (f.type === 'application/pdf' ? read(f) : resizeImage(f, 1400, 0.82))))).slice(0, 4);
       rerender();
     },
     importFile: async (el) => {
@@ -473,6 +474,17 @@ register({
       try {
         toast('جاري قراءة الملف…');
         let rows;
+        if (/\.json$/i.test(f.name)) {
+          const j = JSON.parse(await f.text());
+          if (j.format !== 'rawasi-import' || !Array.isArray(j.rows)) throw new Error('ملف JSON غير معروف');
+          rows = j.rows.map((r) => ({ name: String(r.name || '').trim(), category: r.category || '', qty: n(r.qty), costToman: n(r.costToman), costIqd: n(r.costIqd), price: n(r.price), code: r.code || '', photo: r.photo || '' })).filter((r) => r.name);
+          const opt = state.drafts.importOpt || (state.drafts.importOpt = { mode: 'lot', date: today(), currency: 'toman', tomanPer1000: settings().tomanPer1000 || '', name: '' });
+          Object.assign(opt, { mode: 'lot', name: j.lot?.name || '', date: j.lot?.date || today() });
+          state.drafts.importNote = j.lot?.note || '';
+          state.drafts.importRows = rows;
+          opt.currency = j.lot?.currency === 'iqd' ? 'iqd' : opt.currency;
+          return rerender();
+        }
         try {
           rows = await parseFile(f);
         } catch (err) {
@@ -683,18 +695,19 @@ register({
         let p = byName.get(r.name.trim());
         if (r.category && !settings().categories.includes(r.category)) store.setSettings({ categories: [...settings().categories, r.category] });
         if (!p) {
-          p = store.put('products', { name: r.name.trim(), category: r.category || settings().categories[0] || '', price: n(r.price), code: r.code || '', minStock: '', notes: '', photo: '' });
+          p = store.put('products', { name: r.name.trim(), category: r.category || settings().categories[0] || '', price: n(r.price), code: r.code || '', minStock: '', notes: '', photo: r.photo || '' });
           byName.set(p.name, p);
-        } else if (n(r.price) > 0 || r.code || r.category) {
-          p = store.put('products', { ...p, price: n(r.price) > 0 ? n(r.price) : p.price, code: r.code || p.code, category: r.category || p.category });
+        } else if (n(r.price) > 0 || r.code || r.category || (r.photo && !p.photo)) {
+          p = store.put('products', { ...p, price: n(r.price) > 0 ? n(r.price) : p.price, code: r.code || p.code, category: r.category || p.category, photo: p.photo || r.photo || '' });
         }
         if (v.mode === 'lot' && n(r.qty) > 0) lines.push({ productId: p.id, qty: n(r.qty), costToman: v.currency === 'iqd' ? 0 : n(r.costToman), costIqd: v.currency === 'iqd' ? n(r.costIqd || r.costToman) : (n(r.costToman) ? '' : n(r.costIqd) || '') });
       }
       if (v.mode === 'lot') {
         if (!lines.length) return toast('ما بالملف كميات حتى أسوي وجبة', 'err');
         if (v.currency !== 'iqd' && !n(v.tomanPer1000) && lines.some((l) => l.costToman)) return toast('اكتب سعر الصرف', 'err');
-        const lot = store.put('lots', { name: v.name || 'وجبة من إكسل', date: v.date || today(), supplier: '', currency: v.currency, tomanPer1000: v.currency === 'iqd' ? 0 : n(v.tomanPer1000), extraCostIqd: 0, note: 'مرفوعة من ملف إكسل', lines });
+        const lot = store.put('lots', { name: v.name || 'وجبة من إكسل', date: v.date || today(), supplier: '', currency: v.currency, tomanPer1000: v.currency === 'iqd' ? 0 : n(v.tomanPer1000), extraCostIqd: 0, note: state.drafts.importNote || 'مرفوعة من ملف', lines });
         state.drafts.importRows = null;
+        state.drafts.importNote = '';
         toast(`انضافت ${fmtNum(lines.length)} قطعة كوجبة تجهيز ✓`);
         nav('#/lot/' + lot.id);
       } else {
