@@ -98,6 +98,27 @@ function productView(id) {
   </section>
   ${it?.negative ? `<p class="note note-warn">${icon('bulb', 18)} مبيعات هذا المنتج أكثر من الوارد المسجل. أضف وجبة تجهيز أو تعديل جرد حتى تنضبط الكلفة.</p>` : ''}`}
 
+  ${isNew ? '' : (() => {
+    const sales = store.all('bookings').filter((b) => b.quick && (b.lines || []).some((l) => l.productId === p.id)).sort((a, b) => ((a.date || '') < (b.date || '') ? 1 : -1)).slice(0, 8);
+    return `<section class="card form quick-sale">
+    <h2>${icon('tag', 20)} تسجيل بيع مباشر</h2>
+    <p class="muted small">للبيع اللي صار بدون حجز بالتطبيق. القطع تنخصم من المخزن فوراً وتنحسب بالأرباح.</p>
+    <form class="col gap" data-submit="quickSale" data-id="${esc(p.id)}">
+      <div class="grid3">
+        <label class="field"><span>عدد القطع المباعة</span><input name="qty" inputmode="numeric" required placeholder="1"></label>
+        <label class="field"><span>سعر القطعة</span><input name="price" inputmode="numeric" value="${esc(p.price || '')}"></label>
+        <label class="field"><span>خصم كلي (دينار)</span><input name="disc" inputmode="numeric" placeholder="0"></label>
+      </div>
+      <div class="grid2">
+        <label class="field"><span>التاريخ</span><input type="date" name="date" value="${today()}"></label>
+        <label class="field"><span>الزبون (اختياري)</span><input name="customer" placeholder="الاسم أو ملاحظة"></label>
+      </div>
+      <button class="btn" type="submit">${icon('check', 18)}<span>تسجيل البيع</span></button>
+    </form>
+    ${sales.length ? `<ul class="list">${sales.map((b) => { const l = b.lines.find((x) => x.productId === p.id); return `<li class="row between"><span class="col"><b>${fmtNum(l.qty)} قطعة × ${fmtNum(l.price)}</b><small class="muted">${esc(fmtDate(b.date))}${b.customer?.name && b.customer.name !== 'بيع مباشر' ? ' · ' + esc(b.customer.name) : ''}</small></span><span class="row gap"><b>${money(n(l.qty) * n(l.price) - n(l.disc))}</b><button type="button" class="icon-btn sm" data-act="deleteQuickSale" data-id="${esc(b.id)}" aria-label="حذف البيعة">${icon('x', 16)}</button></span></li>`; }).join('')}</ul>` : ''}
+  </section>`;
+  })()}
+
   <form class="card form" data-submit="saveProduct" data-id="${esc(isNew ? '' : p.id)}">
     <div class="photo-row">
       <div class="col gap-sm">
@@ -530,6 +551,12 @@ register({
       toast('انحذف المنتج');
       nav('#/products');
     },
+    deleteQuickSale: (el) => {
+      if (!confirm('تحذف هذا البيع؟ القطع ترجع للمخزن.')) return;
+      store.remove('bookings', el.dataset.id);
+      toast('انحذف البيع');
+      rerender();
+    },
     deleteAdjustment: (el) => {
       if (!confirm('تحذف هذا التعديل؟')) return;
       store.remove('adjustments', el.dataset.id);
@@ -643,6 +670,30 @@ register({
       state.drafts.productPhoto = null;
       toast('انحفظ ✓');
       nav('#/product/' + rec.id);
+    },
+    quickSale: (form) => {
+      const v = formData(form);
+      const qty = Math.abs(n(v.qty));
+      if (!qty) return toast('اكتب عدد القطع', 'err');
+      const pid = form.dataset.id;
+      const it = inv().items[pid];
+      if (it && qty > it.available && !confirm(`المتاح ${fmtNum(it.available)} قطعة فقط. تسجل البيع على كل حال؟`)) return;
+      const when = (v.date || today()) + 'T' + new Date().toTimeString().slice(0, 8);
+      store.put('bookings', {
+        no: store.nextBookingNo(),
+        quick: true,
+        date: new Date(when).toISOString(),
+        shippedAt: new Date(when).toISOString(),
+        status: 'delivered',
+        customer: { name: v.customer || 'بيع مباشر', phone: '', gov: '', address: '', ig: '' },
+        lines: [{ productId: pid, qty, price: n(v.price), discType: 'amt', disc: n(v.disc), discNote: '' }],
+        orderDiscount: 0,
+        deliveryFee: 0,
+        batchId: '',
+        note: 'بيع مباشر من صفحة المنتج',
+      });
+      toast(`انسجل بيع ${fmtNum(qty)} قطعة ✓`);
+      rerender();
     },
     addAdjustment: (form) => {
       const v = formData(form);
