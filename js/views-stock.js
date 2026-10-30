@@ -483,6 +483,12 @@ register({
           state.drafts.importNote = j.lot?.note || '';
           state.drafts.importRows = rows;
           opt.currency = j.lot?.currency === 'iqd' ? 'iqd' : opt.currency;
+          // إذا المنتجات موجودة سابقاً (انضافت قبل)، نحدّث الصور والأسعار فقط حتى ما تتكرر الكميات
+          const names = new Set(store.all('products').map((p) => p.name.trim()));
+          if (rows.every((r) => names.has(r.name))) {
+            opt.mode = 'products';
+            state.drafts.aiProdNote = 'المنتجات موجودة سابقاً، راح أضيف الصور الناقصة فقط بدون ما أكرر الكميات.';
+          }
           return rerender();
         }
         try {
