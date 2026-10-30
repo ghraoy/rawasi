@@ -103,6 +103,16 @@ export function bookingTotals(b) {
 // ---------- المخزن (FIFO حسب الوجبات) ----------
 // نعيد تشغيل كل الحركات بالترتيب الزمني: وارد الوجبات، التعديلات، والقطع المرسلة.
 // هكذا كلفة كل بيعة تُحسب من الوجبة الأقدم المتبقية، والأرقام ما تنحرف أبداً.
+// نحول الأوقات لوقت الجهاز المحلي قبل الترتيب، حتى وجبة بتاريخ اليوم تنحسب قبل بيعة صارت بنفس اليوم
+// (بدونها، بيعة بعد منتصف الليل بتوقيت بغداد تطلع بتاريخ أمس بتوقيت UTC وتنحسب قبل الوارد).
+function localKey(t) {
+  if (!t || !String(t).includes('T')) return t || '';
+  const d = new Date(t);
+  if (isNaN(d)) return t;
+  const z = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+}
+
 export function computeInventory(db) {
   const products = live(db.products);
   const inv = {};
@@ -118,13 +128,13 @@ export function computeInventory(db) {
   for (const lot of live(db.lots)) {
     lotBreakdown(lot).forEach((l, idx) => {
       if (!l.productId || l.qty <= 0) return;
-      events.push({ t: lot.date || lot.createdAt || '', order: 0, kind: 'in', productId: l.productId, qty: l.qty, unitCost: l.unitCost, lotId: lot.id, lineIdx: idx });
+      events.push({ t: localKey(lot.date || lot.createdAt || ''), order: 0, kind: 'in', productId: l.productId, qty: l.qty, unitCost: l.unitCost, lotId: lot.id, lineIdx: idx });
     });
   }
   for (const a of live(db.adjustments)) {
     const q = num(a.qty);
     if (!a.productId || q === 0) continue;
-    events.push({ t: a.date || a.createdAt || '', order: 1, kind: q > 0 ? 'adjIn' : 'adjOut', productId: a.productId, qty: Math.abs(q), adjId: a.id });
+    events.push({ t: localKey(a.date || a.createdAt || ''), order: 1, kind: q > 0 ? 'adjIn' : 'adjOut', productId: a.productId, qty: Math.abs(q), adjId: a.id });
   }
   const bookingCost = {};
   for (const b of live(db.bookings)) {
@@ -132,7 +142,7 @@ export function computeInventory(db) {
     (b.lines || []).forEach((l, idx) => {
       const q = num(l.qty);
       if (!l.productId || q <= 0) return;
-      events.push({ t: b.shippedAt || b.date || b.createdAt || '', order: 2, kind: 'out', productId: l.productId, qty: q, bookingId: b.id, lineIdx: idx });
+      events.push({ t: localKey(b.shippedAt || b.date || b.createdAt || ''), order: 2, kind: 'out', productId: l.productId, qty: q, bookingId: b.id, lineIdx: idx });
     });
   }
   events.sort((x, y) => (x.t < y.t ? -1 : x.t > y.t ? 1 : x.order - y.order));
@@ -255,7 +265,7 @@ export function priceListText(db, batch, settings = {}) {
 // ---------- التقارير ----------
 export function inRange(iso, from, to) {
   if (!iso) return false;
-  const d = iso.slice(0, 10);
+  const d = localKey(iso).slice(0, 10);
   return (!from || d >= from) && (!to || d <= to);
 }
 
@@ -273,7 +283,7 @@ export function report(db, inv, from, to) {
     discounts += t.discounts;
     delivery += t.delivery;
     pieces += t.qty;
-    const day = (b.shippedAt || b.date || '').slice(0, 10);
+    const day = localKey(b.shippedAt || b.date || '').slice(0, 10);
     byDay[day] = byDay[day] || { revenue: 0, profit: 0 };
     byDay[day].revenue += t.itemsNet;
     byDay[day].profit += t.itemsNet - c.total;
