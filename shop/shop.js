@@ -306,9 +306,19 @@ function homeHtml() {
     </div>
   </section>`;
 
+  const ART = { 'سيراميك': 'glaze', 'مخمل': 'velvet', 'دينيات': 'lapis', 'ديكور': 'peach' };
+  const cycle = ['glaze', 'velvet', 'lapis', 'peach'];
+  const catTiles = cats.length > 1 ? `<section class="sec" aria-labelledby="catsT"><div class="sec-head"><h2 id="catsT">تسوّق حسب القسم</h2></div><div class="cats">
+    ${cats.map((c, i) => {
+      const pick = all.find((p) => p.cat === c && p.imgs?.length && p.status !== 'out') || all.find((p) => p.cat === c && p.imgs?.length);
+      return `<button type="button" class="cat cat-${ART[c] || cycle[i % 4]}" data-cat="${esc(c)}"><span class="cat-arch">${pick ? photo(pick, { cls: 'cat-img' }) : ''}</span><b>${esc(c)}</b><small>${counts[c]} قطعة</small></button>`;
+    }).join('')}
+  </div></section>` : '';
+
   if (browsing) return allSec;
   return [
     heroHtml,
+    catTiles,
     drop.length ? section('drop', esc(d.drop.name || 'النزلة الحالية'), d.drop.endsAt && countdown(d.drop.endsAt) ? `تنتهي بعد ${countdown(d.drop.endsAt)}. الحجز حسب الأسبقية.` : 'كمية محدودة، والحجز حسب الأسبقية.', grid(drop)) : '',
     fresh.length >= 3 ? section('new', 'وصل حديثاً', '', rail(fresh)) : '',
     hot.length >= 3 ? section('hot', 'الأكثر طلباً', 'القطع اللي يكثر عليها الطلب', rail(hot)) : '',
@@ -321,7 +331,7 @@ function footerHtml() {
   const s = state.data?.store || {};
   const upd = state.data?.updatedAt ? new Date(state.data.updatedAt) : null;
   return `<footer class="foot">
-    <div class="foot-brand"><span class="brand-tile" aria-hidden="true">ر</span><div><b>${esc(s.name || 'متجر رواسي')}</b><p>${esc(s.about || '')}</p></div></div>
+    <div class="foot-brand"><img class="brand-logo" src="logo.jpg" alt="" width="46" height="46"><div><b>${esc(s.name || 'متجر رواسي')}</b><p>${esc(s.about || '')}</p></div></div>
     <div class="foot-links">
       ${s.instagram ? `<a href="https://instagram.com/${esc(s.instagram)}" target="_blank" rel="noopener">${icon('ig', 18)}<span>@${esc(s.instagram)}</span></a>` : ''}
       ${s.whatsapp ? `<a href="${waLink(s.whatsapp)}" target="_blank" rel="noopener">${icon('wa', 18)}<span>واتساب</span></a>` : ''}
@@ -349,7 +359,7 @@ function renderMain() {
   const main = $('#main');
   if (state.error) {
     main.innerHTML = state.error === 'empty'
-      ? `<div class="state"><span class="brand-tile big" aria-hidden="true">ر</span><h1>القطع تنزل قريباً</h1><p>نجهّز المتجر حالياً. تابعنا على الانستقرام حتى توصلك أول نزلة.</p><a class="btn" href="https://instagram.com/rawaas_y" target="_blank" rel="noopener">${icon('ig', 18)}<span>@rawaas_y</span></a></div>`
+      ? `<div class="state"><img class="brand-logo big" src="logo.jpg" alt="" width="96" height="96"><h1>القطع تنزل قريباً</h1><p>نجهّز المتجر حالياً. تابعنا على الانستقرام حتى توصلك أول نزلة.</p><a class="btn" href="https://instagram.com/rawaas_y" target="_blank" rel="noopener">${icon('ig', 18)}<span>@rawaas_y</span></a></div>`
       : `<div class="state"><h1>ما قدرنا نحمّل القطع</h1><p>تأكد من الإنترنت وجرّب مرة ثانية.</p><button type="button" class="btn" data-retry>إعادة المحاولة</button></div>`;
     return;
   }
