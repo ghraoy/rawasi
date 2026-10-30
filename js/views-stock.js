@@ -321,7 +321,7 @@ function lotView(id) {
             ${toman
               ? `<label class="field"><span>سعر القطعة (تومان)</span><input inputmode="numeric" data-in="lotLine" data-i="${i}" data-k="costToman" value="${esc(l.costToman)}" placeholder="0"></label>`
               : `<label class="field"><span>سعر القطعة (دينار)</span><input inputmode="numeric" data-in="lotLine" data-i="${i}" data-k="costIqd" value="${esc(l.costIqd)}" placeholder="0"></label>`}
-            <label class="field"><span>سعر البيع (اختياري)</span><input inputmode="numeric" data-in="lotLine" data-i="${i}" data-k="salePrice" value="${esc(l.salePrice)}" placeholder="${esc(store.get('products', l.productId)?.price || '')}"></label>
+            ${l.productId === '__new' ? `<label class="field"><span>سعر البيع للمنتج الجديد</span><input inputmode="numeric" data-in="lotLine" data-i="${i}" data-k="salePrice" value="${esc(l.salePrice)}" placeholder="0"></label>` : ''}
           </div>
           <div class="muted small" id="lc-${i}">${lineCostText(costs[i])}</div>
           ${id !== 'new' && l.productId && l.productId !== '__new' ? (() => { const r = (lotRemaining(inv())[id] || {})[l.productId]; const q = n(l.qty); return r == null && !q ? '' : `<div class="small">انباع <b>${fmtNum(Math.max(q - (r || 0), 0))}</b> · باقي <b>${fmtNum(r || 0)}</b> من ${fmtNum(q)}</div>`; })() : ''}
@@ -796,7 +796,8 @@ register({
           const existing = store.all('products').find((p) => p.name.trim() === l.newName.trim());
           productId = existing ? existing.id : store.put('products', { name: l.newName.trim(), category: l.newCategory || settings().categories[0] || '', price: n(l.salePrice), minStock: '', code: '', notes: '', photo: '' }).id;
         }
-        if (n(l.salePrice) > 0) {
+        // سعر البيع يتغير من صفحة المنتج فقط؛ الوجبة تحدد سعر البيع بس للمنتج الجديد
+        if (false && n(l.salePrice) > 0) {
           const p = store.get('products', productId);
           if (p && n(p.price) !== n(l.salePrice)) store.put('products', { ...p, price: n(l.salePrice) });
         }
