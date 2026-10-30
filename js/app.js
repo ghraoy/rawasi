@@ -6,6 +6,7 @@ import * as sync from './sync.js';
 import './views-stock.js';
 import './views-sales.js';
 import './views-web.js';
+import './views-salelog.js';
 import * as web from './web.js';
 import { hashPin } from './views-more.js';
 
@@ -14,11 +15,12 @@ const NAV = [
   { name: 'products', label: 'المنتجات', icon: 'box', match: ['products', 'product', 'lots', 'lot', 'import'] },
   { name: 'bookings', label: 'الحجوزات', icon: 'clip', match: ['bookings', 'booking'] },
   { name: 'batches', label: 'الدفعات', icon: 'layers', match: ['batches', 'batch'] },
-  { name: 'more', label: 'المزيد', icon: 'menu', match: ['more', 'ai', 'customers', 'expenses', 'reports', 'settings', 'web'] },
+  { name: 'more', label: 'المزيد', icon: 'menu', match: ['more', 'ai', 'customers', 'expenses', 'reports', 'settings', 'web', 'sales', 'sale'] },
 ];
 const DESKTOP_EXTRA = [
   { name: 'ai', label: 'المساعد الذكي', icon: 'spark' },
   { name: 'web', label: 'الموقع الإلكتروني', icon: 'globe' },
+  { name: 'sales', label: 'سجل المبيعات', icon: 'tag' },
   { name: 'reports', label: 'التقارير', icon: 'chart' },
   { name: 'customers', label: 'الزبائن', icon: 'users' },
   { name: 'expenses', label: 'المصاريف', icon: 'wallet' },

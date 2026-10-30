@@ -100,6 +100,7 @@ async function askQuestion(q) {
 // ---------- المزيد ----------
 function moreView() {
   const tiles = [
+    ['#/sales', 'tag', 'سجل المبيعات', 'كل بيعة بتاريخها، مع التعديل', '#F8EBD3'],
     ['#/customers', 'users', 'الزبائن', 'كل زبون ومشترياته', '#DCEBE8'],
     ['#/expenses', 'wallet', 'المصاريف', 'تغليف، إعلانات، توصيل', '#F8EBD3'],
     ['#/reports', 'chart', 'التقارير', 'الأرباح والأكثر مبيعاً', '#E0E9F5'],

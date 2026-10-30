@@ -134,7 +134,7 @@ function productView(id) {
       </div>
       <button class="btn" type="submit">${icon('check', 18)}<span>تسجيل البيع</span></button>
     </form>
-    ${sales.length ? `<ul class="list">${sales.map((b) => { const l = b.lines.find((x) => x.productId === p.id); return `<li class="row between"><span class="col"><b>${fmtNum(l.qty)} قطعة × ${fmtNum(l.price)}</b><small class="muted">${esc(fmtDate(b.date))}${b.customer?.name && b.customer.name !== 'بيع مباشر' ? ' · ' + esc(b.customer.name) : ''}</small></span><span class="row gap"><b>${money(n(l.qty) * n(l.price) - n(l.disc))}</b><button type="button" class="icon-btn sm" data-act="deleteQuickSale" data-id="${esc(b.id)}" aria-label="حذف البيعة">${icon('x', 16)}</button></span></li>`; }).join('')}</ul>` : ''}
+    ${sales.length ? `<div class="row between"><b class="small">آخر البيعات</b><a class="link" href="#/sales">سجل المبيعات</a></div><ul class="list">${sales.map((b) => { const l = b.lines.find((x) => x.productId === p.id); return `<li class="row between"><a class="col grow" href="#/sale/${esc(b.id)}" style="color:inherit"><b>${fmtNum(l.qty)} قطعة × ${fmtNum(l.price)} <small class="link">تعديل</small></b><small class="muted">${esc(fmtDate(b.shippedAt || b.date))}${b.customer?.name && b.customer.name !== 'بيع مباشر' ? ' · ' + esc(b.customer.name) : ''}</small></a><span class="row gap"><b>${money(n(l.qty) * n(l.price) - n(l.disc))}</b><button type="button" class="icon-btn sm" data-act="deleteQuickSale" data-id="${esc(b.id)}" aria-label="حذف البيعة">${icon('x', 16)}</button></span></li>`; }).join('')}</ul>` : ''}
   </section>`;
   })()}
 

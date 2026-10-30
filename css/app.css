@@ -491,3 +491,7 @@ a.tab { display: inline-flex; align-items: center; justify-content: center; }
 .home-head .sync-chip:not([data-act=connectGoogle]) { display: none; }
 body.has-sync .page-head { padding-inline-end: 92px; }
 @media (min-width: 960px) { .sync-badge { top: 18px; left: 20px; } }
+
+.sale-row { color: var(--ink); }
+.sale-row:hover { color: var(--ink); }
+.sale-row .col.end { align-items: flex-end; text-align: left; }

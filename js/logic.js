@@ -147,7 +147,8 @@ export function computeInventory(db) {
   }
   events.sort((x, y) => (x.t < y.t ? -1 : x.t > y.t ? 1 : x.order - y.order));
 
-  const take = (it, qty) => {
+  // ref: {bookingId, lineIdx} حتى إذا انباعت قطعة قبل ما تتسجل وجبتها، تنحسب كلفتها من أول وجبة توصل بعدين
+  const take = (it, qty, ref) => {
     let need = qty;
     let cost = 0;
     while (need > 0 && it.queue.length) {
@@ -159,11 +160,30 @@ export function computeInventory(db) {
       if (head.remaining <= 0) it.queue.shift();
     }
     if (need > 0) {
-      // بيع أكثر من الوارد المسجل: نحسب على آخر كلفة معروفة ونعلّم المنتج.
-      cost += need * it.lastUnitCost;
-      it.negative = true;
+      // بيع قبل ما يتسجل الوارد: نأجل الكلفة لحد ما توصل وجبة (أو نحسب على آخر كلفة إذا ماكو)
+      it.owed = it.owed || [];
+      it.owed.push({ qty: need, ref });
     }
     return cost;
+  };
+  const addCost = (ref, amount) => {
+    if (!ref || !amount) return;
+    bookingCost[ref.bookingId] = bookingCost[ref.bookingId] || { total: 0, lines: {} };
+    bookingCost[ref.bookingId].total += amount;
+    bookingCost[ref.bookingId].lines[ref.lineIdx] = (bookingCost[ref.bookingId].lines[ref.lineIdx] || 0) + amount;
+  };
+  // وارد جديد يسدد أولاً القطع اللي انباعت قبله
+  const settleOwed = (it) => {
+    while (it.owed?.length && it.queue.length) {
+      const o = it.owed[0];
+      const head = it.queue[0];
+      const used = Math.min(head.remaining, o.qty);
+      addCost(o.ref, used * head.unitCost);
+      head.remaining -= used;
+      o.qty -= used;
+      if (head.remaining <= 0) it.queue.shift();
+      if (o.qty <= 0) it.owed.shift();
+    }
   };
 
   for (const e of events) {
@@ -172,19 +192,29 @@ export function computeInventory(db) {
       it.queue.push({ lotId: e.lotId, remaining: e.qty, qty: e.qty, unitCost: e.unitCost, date: e.t });
       it.received += e.qty;
       it.lastUnitCost = e.unitCost;
+      settleOwed(it);
     } else if (e.kind === 'adjIn') {
       const unit = avgQueueCost(it) || it.lastUnitCost;
       it.queue.push({ lotId: null, remaining: e.qty, qty: e.qty, unitCost: unit, date: e.t });
       it.adjusted += e.qty;
+      settleOwed(it);
     } else if (e.kind === 'adjOut') {
       take(it, e.qty);
       it.adjusted -= e.qty;
     } else if (e.kind === 'out') {
-      const cost = take(it, e.qty);
-      it.sold += e.qty;
+      const ref = { bookingId: e.bookingId, lineIdx: e.lineIdx };
       bookingCost[e.bookingId] = bookingCost[e.bookingId] || { total: 0, lines: {} };
-      bookingCost[e.bookingId].total += cost;
-      bookingCost[e.bookingId].lines[e.lineIdx] = cost;
+      bookingCost[e.bookingId].lines[e.lineIdx] = bookingCost[e.bookingId].lines[e.lineIdx] || 0;
+      const cost = take(it, e.qty, ref);
+      it.sold += e.qty;
+      addCost(ref, cost);
+    }
+  }
+  // قطع انباعت وما وصل إلها وارد أبداً: نحسبها على آخر كلفة معروفة ونعلّم المنتج
+  for (const it of Object.values(inv)) {
+    for (const o of it.owed || []) {
+      addCost(o.ref, o.qty * it.lastUnitCost);
+      it.negative = true;
     }
   }
 
