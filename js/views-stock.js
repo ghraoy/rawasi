@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import { register, state, inv, data, settings, nav, rerender, ui, setUi, formData, bumpVersion } from './core.js';
 import { esc, icon, thumb, stockPill, money, fmtDate, today, toast, resizeImage, options, emptyState, copyText } from './ui.js';
-import { live, fmtNum, fmtIQD, lotBreakdown, lotTotals, productCostHistory, rateFromTotals, tomanToIqd, stockLevel, round } from './logic.js';
+import { live, fmtNum, fmtIQD, lotBreakdown, lotTotals, lotRemaining, productCostHistory, rateFromTotals, tomanToIqd, stockLevel, round } from './logic.js';
 import { parseFile, downloadTemplate, sheetToText } from './excel.js';
 import * as ai from './ai.js';
 import * as sync from './sync.js';
@@ -218,13 +218,18 @@ function lotsView() {
     <a class="btn btn-ghost btn-sm" href="#/import">${icon('sheet', 18)}<span>من إكسل</span></a>
   </header>
   <p class="muted small">كل مرة تشتري بضاعة من المورد سجّلها هنا: الأسعار بالتومان مع سعر الصرف بيومها. التطبيق يحسب كلفة كل قطعة بالدينار ويبيع من الأقدم أولاً.</p>
-  ${lots.length ? `<div class="col gap">${lots.map((l) => {
+  ${lots.length ? `<div class="col gap">${(() => { const remAll = lotRemaining(inv()); return lots.map((l) => {
     const t = lotTotals(l);
+    const rem = Object.values(remAll[l.id] || {}).reduce((a, b) => a + b, 0);
+    const sold = Math.max(t.qty - rem, 0);
+    const pct = t.qty ? Math.round((sold / t.qty) * 100) : 0;
     return `<a class="card card-link" href="#/lot/${esc(l.id)}">
       <div class="row between"><div class="col"><b>${esc(l.name || 'وجبة')}</b><span class="muted small">${esc(fmtDate(l.date, true))}${l.supplier ? ' · ' + esc(l.supplier) : ''}</span></div><span class="price">${money(t.cost)}</span></div>
       <div class="row gap wrap small muted"><span>${fmtNum(t.qty)} قطعة</span>${l.currency !== 'iqd' && t.toman ? `<span>· ${fmtNum(t.toman)} تومان</span><span>· الصرف ${fmtNum(l.tomanPer1000)} تومان/1000 د.ع</span>` : ''}${n(l.extraCostIqd) ? `<span>· مصاريف ${fmtNum(l.extraCostIqd)}</span>` : ''}</div>
+      <div class="mini-bar"><div style="width:${pct}%;background:var(--teal)"></div></div>
+      <div class="row between small"><span>انباع <b>${fmtNum(sold)}</b></span><span>باقي <b>${fmtNum(rem)}</b> من ${fmtNum(t.qty)}</span></div>
     </a>`;
-  }).join('')}</div>` : emptyState('ما عندك وجبات تجهيز بعد', '<a class="btn" href="#/lot/new">سجل أول وجبة</a>')}
+  }).join(''); })()}</div>` : emptyState('ما عندك وجبات تجهيز بعد', '<a class="btn" href="#/lot/new">سجل أول وجبة</a>')}
   <a class="fab" href="#/lot/new" aria-label="وجبة جديدة">${icon('plus', 26)}</a>`;
 }
 
@@ -319,6 +324,7 @@ function lotView(id) {
             <label class="field"><span>سعر البيع (اختياري)</span><input inputmode="numeric" data-in="lotLine" data-i="${i}" data-k="salePrice" value="${esc(l.salePrice)}" placeholder="${esc(store.get('products', l.productId)?.price || '')}"></label>
           </div>
           <div class="muted small" id="lc-${i}">${lineCostText(costs[i])}</div>
+          ${id !== 'new' && l.productId && l.productId !== '__new' ? (() => { const r = (lotRemaining(inv())[id] || {})[l.productId]; const q = n(l.qty); return r == null && !q ? '' : `<div class="small">انباع <b>${fmtNum(Math.max(q - (r || 0), 0))}</b> · باقي <b>${fmtNum(r || 0)}</b> من ${fmtNum(q)}</div>`; })() : ''}
         </div>`).join('')}
       </div>
       <button type="button" class="btn btn-dashed" data-act="lotAddLine">+ إضافة قطعة</button>

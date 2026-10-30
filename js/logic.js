@@ -211,6 +211,19 @@ function avgQueueCost(it) {
   return it.queue.reduce((s, q) => s + q.remaining * q.unitCost, 0) / qty;
 }
 
+// كم باقي من كل وجبة (حسب البيع من الأقدم أولاً): { lotId: { productId: remaining } }
+export function lotRemaining(inv) {
+  const out = {};
+  for (const it of Object.values(inv.items)) {
+    for (const q of it.queue) {
+      if (!q.lotId) continue;
+      out[q.lotId] = out[q.lotId] || {};
+      out[q.lotId][it.productId] = (out[q.lotId][it.productId] || 0) + q.remaining;
+    }
+  }
+  return out;
+}
+
 // تاريخ كلفة منتج عبر الوجبات (لصفحة المنتج).
 export function productCostHistory(db, productId) {
   const out = [];
