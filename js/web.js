@@ -18,7 +18,7 @@ export const WEB_DEFAULTS = {
   orderNote: 'الحجز حسب الأسبقية. الكمية محدودة.',
   dropEndsAt: '',
   showSoldOut: true,
-  siteUrl: '',
+  siteUrl: 'rawasistore.com',
 };
 
 export function webSettings(settings = {}) {
@@ -156,13 +156,21 @@ export function catalogHash(catalog) {
 const KEY = 'rawasi.web';
 export const TOKEN_URL = 'https://github.com/settings/tokens/new?scopes=public_repo&description=' + encodeURIComponent('Rawasi shop');
 
+// الموقع صار بمستودع خاص بيه (ghraoy/rawasistore) على الدومين rawasistore.com.
+// التطبيق يبقى على ghraoy.github.io/rawasi حتى يبقى تسجيل Google شغال.
 export function getConfig() {
-  const def = { token: '', repo: 'ghraoy/rawasi', branch: 'main', dir: 'shop', auto: true, lastHash: '', lastAt: '', lastError: '' };
+  const def = { token: '', repo: 'ghraoy/rawasistore', branch: 'main', dir: '', auto: true, lastHash: '', lastAt: '', lastError: '' };
+  let c = def;
   try {
-    return { ...def, ...JSON.parse(localStorage.getItem(KEY) || '{}') };
-  } catch {
-    return def;
+    c = { ...def, ...JSON.parse(localStorage.getItem(KEY) || '{}') };
+  } catch {}
+  if (c.repo === 'ghraoy/rawasi' && c.dir === 'shop' && !c.movedToStore) {
+    c = { ...c, repo: 'ghraoy/rawasistore', dir: '', branch: 'main', lastHash: '', movedToStore: true };
+    try {
+      localStorage.setItem(KEY, JSON.stringify(c));
+    } catch {}
   }
+  return c;
 }
 
 export function setConfig(patch) {
@@ -172,7 +180,7 @@ export function setConfig(patch) {
 }
 
 export function siteUrl(settings = {}) {
-  const custom = webSettings(settings).siteUrl;
+  const custom = webSettings(settings).siteUrl || WEB_DEFAULTS.siteUrl;
   if (custom) return /^https?:\/\//.test(custom) ? custom : 'https://' + custom.replace(/\/+$/, '') + '/';
   const c = getConfig();
   const [owner, repo] = c.repo.split('/');
