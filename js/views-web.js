@@ -94,10 +94,7 @@ function webView() {
     <label class="field"><span>جملة تعريفية تحت اسم المتجر</span><input name="tagline" value="${esc(w.tagline)}"></label>
     <label class="field"><span>نبذة عن المتجر (أسفل الموقع)</span><textarea name="about" rows="2">${esc(w.about)}</textarea></label>
     <label class="field"><span>شريط إعلان أعلى الموقع <small class="muted">اختياري</small></span><input name="announcement" value="${esc(w.announcement)}" placeholder="مثلاً: النزلة الجديدة وصلت، والكمية محدودة"></label>
-    <div class="grid2">
-      <label class="field"><span>حساب الانستقرام</span><input name="instagram" dir="ltr" value="${esc(w.instagram)}" placeholder="rawaas_y"></label>
-      <label class="field"><span>رقم واتساب <small class="muted">اختياري</small></span><input name="whatsapp" dir="ltr" inputmode="tel" value="${esc(w.whatsapp)}" placeholder="07xxxxxxxxx"></label>
-    </div>
+    <label class="field"><span>حساب الانستقرام <small class="muted">الحجز يتم بالدايركت مال هذا الحساب</small></span><input name="instagram" dir="ltr" value="${esc(w.instagram)}" placeholder="rawaas_y"></label>
     <div class="grid2">
       <label class="field"><span>ملاحظة التوصيل</span><input name="deliveryNote" value="${esc(w.deliveryNote)}"></label>
       <label class="field"><span>وقت الرد على الرسائل <small class="muted">اختياري</small></span><input name="dmHours" value="${esc(w.dmHours)}" placeholder="مثلاً: نرد يومياً الساعة 8 مساءً"></label>
@@ -168,7 +165,7 @@ register({
       const v = formData(form);
       const next = {
         tagline: v.tagline, about: v.about, announcement: v.announcement,
-        instagram: v.instagram.replace(/^@/, ''), whatsapp: v.whatsapp,
+        instagram: v.instagram.replace(/^@/, ''), whatsapp: '',
         deliveryNote: v.deliveryNote, dmHours: v.dmHours, orderNote: v.orderNote,
         dropEndsAt: v.dropEndsAt, siteUrl: v.siteUrl.replace(/^https?:\/\//, '').replace(/\/+$/, ''),
         showSoldOut: !!v.showSoldOut,

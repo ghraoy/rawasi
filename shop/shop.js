@@ -300,7 +300,7 @@ function homeHtml() {
     <ol class="steps">
       <li><b>اختار قطعك</b><span>ضيفها للسلة، وتقدر تغيّر الكمية بأي وقت.</span></li>
       <li><b>اكتب معلوماتك</b><span>الاسم والهاتف والعنوان، وينحفظون لطلبك الجاي.</span></li>
-      <li><b>أرسل الطلب</b><span>${s.instagram ? 'نجهّز لك رسالة جاهزة، ترسلها لنا بالانستقرام' : 'نجهّز لك رسالة جاهزة ترسلها لنا'}${s.whatsapp ? ' أو الواتساب' : ''}.</span></li>
+      <li><b>احجز بالدايركت</b><span>نجهّز لك رسالة الحجز، ترسلها لنا بدايركت الانستقرام @${esc(s.instagram || 'rawaas_y')} ونأكد حجزك هناك.</span></li>
     </ol>
     <div class="facts">
       <div class="fact">${icon('truck', 22)}<div><b>التوصيل ${s.deliveryFee ? money(s.deliveryFee) : ''}</b><span>${esc(s.deliveryNote || 'لكل المحافظات')}</span></div></div>
@@ -334,7 +334,6 @@ function footerHtml() {
     <div class="foot-brand"><img class="brand-logo" src="logo.jpg" alt="" width="46" height="46"><div><b>${esc(s.name || 'متجر رواسي')}</b><p>${esc(s.about || '')}</p></div></div>
     <div class="foot-links">
       ${s.instagram ? `<a href="https://instagram.com/${esc(s.instagram)}" target="_blank" rel="noopener">${icon('ig', 18)}<span>@${esc(s.instagram)}</span></a>` : ''}
-      ${s.whatsapp ? `<a href="${waLink(s.whatsapp)}" target="_blank" rel="noopener">${icon('wa', 18)}<span>واتساب</span></a>` : ''}
     </div>
     ${upd ? `<p class="foot-upd">الكميات محدّثة ${relTime(upd)}</p>` : ''}
   </footer>`;
@@ -457,7 +456,7 @@ function cartHtml() {
       <div class="sum-total"><span>المجموع</span><b>${money(t.total)}</b></div>
     </div>
     <div class="side-foot">
-      <a class="btn btn-buy wide${t.count ? '' : ' disabled'}" href="#/checkout" ${t.count ? '' : 'aria-disabled="true" tabindex="-1"'}>أكمل الطلب</a>
+      <a class="btn btn-buy wide${t.count ? '' : ' disabled'}" href="#/checkout" ${t.count ? '' : 'aria-disabled="true" tabindex="-1"'}>أكمل الحجز</a>
       ${state.data.store.orderNote ? `<p class="hint">${esc(state.data.store.orderNote)}</p>` : ''}
     </div>` : `<div class="empty"><p>السلة فارغة. ضيف القطع اللي عجبتك وارجع هنا.</p><button type="button" class="btn" data-close>تصفّح القطع</button></div>`}
   </div>`;
@@ -491,8 +490,8 @@ function checkoutHtml() {
         <div class="sum-total"><span>المجموع</span><b>${money(t.total)}</b></div>
       </div>
       <p class="form-err" id="coErr" role="alert" hidden></p>
-      <button class="btn btn-buy wide" type="submit">جهّز رسالة الطلب</button>
-      <p class="hint">ما ينرسل شي تلقائياً. نجهّز لك رسالة فيها طلبك، وأنت ترسلها لنا.${state.data.store.dmHours ? ' ' + esc(state.data.store.dmHours) + '.' : ''}</p>
+      <button class="btn btn-buy wide" type="submit">${icon('ig', 18)}<span>جهّز رسالة الحجز</span></button>
+      <p class="hint">الحجز يتم بدايركت الانستقرام. نجهّز لك رسالة فيها قطعك ومعلوماتك، وأنت ترسلها لنا.${state.data.store.dmHours ? ' ' + esc(state.data.store.dmHours) + '.' : ''}</p>
     </form>
   </div>`;
 }
@@ -502,7 +501,7 @@ function orderText(buyer, ref) {
   const t = cartTotals();
   const lines = t.lines.map((l, i) => `${i + 1}. ${l.p.name} × ${Math.min(l.qty, l.p.max)} — ${money(l.p.price * Math.min(l.qty, l.p.max))}`);
   return [
-    `طلب من موقع ${s.name} (${ref})`,
+    `حجز من موقع ${s.name} (${ref})`,
     '',
     ...lines,
     '',
@@ -525,18 +524,17 @@ function doneHtml() {
   if (!o) return cartHtml();
   const s = state.data.store;
   return `<div class="sheet sheet-side" role="dialog" aria-modal="true" aria-labelledby="doneT">
-    <div class="side-head"><h2 id="doneT">طلبك جاهز</h2><button type="button" class="close" data-close aria-label="إغلاق">${icon('x', 22)}</button></div>
+    <div class="side-head"><h2 id="doneT">باقي خطوة وحدة</h2><button type="button" class="close" data-close aria-label="إغلاق">${icon('x', 22)}</button></div>
     <div class="side-scroll done">
-      <p>${o.copied ? 'نسخنا رسالة الطلب.' : 'رسالة الطلب جاهزة تحت.'} ${s.instagram ? 'افتح رسائلنا بالانستقرام والصقها، ونرد عليك بالتأكيد.' : ''}</p>
+      <p>الحجز يتم بدايركت حسابنا بالانستقرام. ${o.copied ? 'نسخنا رسالة الحجز،' : 'انسخ رسالة الحجز تحت،'} افتح الدايركت والصقها، ونأكد حجزك هناك.</p>
       <ol class="steps steps-sm">
-        <li><b>${o.copied ? 'تم النسخ' : 'انسخ الرسالة'}</b><button type="button" class="btn btn-line" data-copy>${icon(o.copied ? 'check' : 'copy', 18)}<span>${o.copied ? 'انسخها مرة ثانية' : 'انسخ الرسالة'}</span></button></li>
-        <li><b>أرسلها لنا</b><div class="send-row">
-          ${s.instagram ? `<a class="btn btn-buy" href="https://ig.me/m/${esc(s.instagram)}" target="_blank" rel="noopener">${icon('ig', 18)}<span>افتح الانستقرام</span></a>` : ''}
-          ${s.whatsapp ? `<a class="btn btn-line" href="${waLink(s.whatsapp, o.text)}" target="_blank" rel="noopener">${icon('wa', 18)}<span>أرسل بالواتساب</span></a>` : ''}
+        <li><b>${o.copied ? 'تم نسخ الرسالة' : 'انسخ الرسالة'}</b><button type="button" class="btn btn-line" data-copy>${icon(o.copied ? 'check' : 'copy', 18)}<span>${o.copied ? 'انسخها مرة ثانية' : 'انسخ الرسالة'}</span></button></li>
+        <li><b>افتح الدايركت والصقها</b><div class="send-row">
+          <a class="btn btn-buy" href="https://ig.me/m/${esc(s.instagram || 'rawaas_y')}" target="_blank" rel="noopener" data-dm>${icon('ig', 18)}<span>افتح دايركت @${esc(s.instagram || 'rawaas_y')}</span></a>
         </div></li>
       </ol>
       <pre class="order-text" tabindex="0">${esc(o.text)}</pre>
-      <p class="hint">${esc(s.orderNote || '')} الطلب ينثبت بعد ما نأكده لك بالرسائل.</p>
+      <p class="hint">${esc(s.orderNote || '')} الحجز ينثبت بعد ما نأكده لك بالدايركت.</p>
       <div class="send-row"><button type="button" class="btn-text" data-clear>${icon('trash', 18)}<span>فرّغ السلة</span></button><button type="button" class="btn-text" data-close>رجوع للمتجر</button></div>
     </div>
   </div>`;
@@ -699,9 +697,13 @@ function bind() {
       } else if (await copy(url)) toast('نسخنا رابط القطعة');
       return;
     }
+    if (d.dm !== undefined && lastOrder) {
+      copy(lastOrder.text); // ننسخها مرة ثانية حتى تكون جاهزة للصق بالدايركت
+      return;
+    }
     if (d.copy !== undefined && lastOrder) {
       lastOrder.copied = await copy(lastOrder.text);
-      toast(lastOrder.copied ? 'نسخنا رسالة الطلب' : 'ما قدرنا ننسخ، حدد النص وانسخه يدوياً');
+      toast(lastOrder.copied ? 'نسخنا رسالة الحجز' : 'ما قدرنا ننسخ، حدد النص وانسخه يدوياً');
       return renderLayer();
     }
     if (d.clear !== undefined) {
