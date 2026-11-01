@@ -158,6 +158,10 @@ async function start() {
   onHash();
   sync.startAuto();
   web.startAuto(store);
+  // بعد كل مزامنة ناجحة ننشر للموقع (حتى تعديلات الموبايل توصل حتى لو انفتح التطبيق على الحاسبة بس)
+  sync.onStatus((s) => {
+    if (s.state === 'ok') web.schedule(2000);
+  });
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     // التحديثات توصل تلقائياً: نفحص وجود نسخة جديدة عند الفتح وكل ما ترجع للتطبيق
     navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {

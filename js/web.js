@@ -316,19 +316,37 @@ export async function testToken(token, repo) {
   return { branch: j.default_branch || 'main' };
 }
 
-// نشر تلقائي: بعد أي تعديل بدقيقة، فقط إذا تغيّر شي يخص الزبون.
+// نشر تلقائي ومتكرر حتى ما يفوت أي تحديث:
+// - بعد أي تعديل بـ 15 ثانية
+// - بعد كل مزامنة ناجحة مع الـ Drive (تعديلات الأجهزة الثانية)
+// - أول ما يفتح التطبيق، وكل دقيقتين وهو مفتوح
+// النشر ما يرفع شي إذا الكتالوج ما تغيّر، فالفحص المتكرر ما يكلّف.
 let timer = null;
+let storeRef = null;
+export function schedule(delay = 15000) {
+  if (!storeRef) return;
+  const c = getConfig();
+  if (!tokenFor(storeRef.getData()) || !c.auto) return;
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    publish(storeRef.getData()).catch(() => {});
+  }, delay);
+}
+
 export function startAuto(store) {
+  storeRef = store;
   // جهاز مربوط من قبل: ننقل رمزه لإعدادات المتجر حتى يوصل لباقي الأجهزة مع المزامنة.
   const local = getConfig().token;
   if (local && !store.getData().settings?.ghToken) store.setSettings({ ghToken: local });
-  store.subscribe(() => {
-    const c = getConfig();
-    if (!tokenFor(store.getData()) || !c.auto) return;
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-      publish(store.getData()).catch(() => {});
-    }, 60000);
-  });
+  store.subscribe(() => schedule(15000));
+  schedule(5000);
+  if (typeof document !== 'undefined') {
+    setInterval(() => {
+      if (document.visibilityState === 'visible') schedule(0);
+    }, 120000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') schedule(3000);
+    });
+  }
 }
