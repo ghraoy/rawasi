@@ -331,6 +331,7 @@ register({
       try {
         const raw = JSON.parse(await f.text());
         if (!confirm('تستبدل كل البيانات الحالية بهذه النسخة؟')) return;
+        if (raw?.settings && !raw.settings.ghToken && settings().ghToken) raw.settings.ghToken = settings().ghToken;
         store.replaceAll(raw);
         toast('انسترجعت النسخة ✓');
         nav('#/home');
@@ -396,7 +397,7 @@ register({
       store.remove('expenses', el.dataset.id);
       rerender();
     },
-    backupDownload: () => download(`rawasi-backup-${today()}.json`, JSON.stringify(data())),
+    backupDownload: () => download(`rawasi-backup-${today()}.json`, JSON.stringify({ ...data(), settings: { ...data().settings, ghToken: '' } })),
     exportAll: async () => {
       try {
         const sheets = sync.buildSheets(data());

@@ -123,9 +123,16 @@ export function buildCatalog(db, nowIso = new Date().toISOString()) {
   const present = new Set(products.map((p) => p.cat));
   const categories = [...(settings.categories || []).filter((c) => present.has(c)), ...[...present].filter((c) => !(settings.categories || []).includes(c))];
 
+  // أحدث تعديل بالبيانات: نستخدمه حتى ما يكتب جهاز بياناته قديمة فوق نسخة أحدث بالموقع.
+  let dataAt = String(settings.updatedAt || '');
+  for (const col of ['products', 'lots', 'bookings', 'batches', 'adjustments']) {
+    for (const r of db[col] || []) if (r && (r.updatedAt || '') > dataAt) dataAt = r.updatedAt;
+  }
+
   const catalog = {
     v: 1,
     updatedAt: nowIso,
+    dataAt,
     store: {
       name: settings.storeName || 'متجر رواسي',
       tagline: web.tagline,
@@ -149,7 +156,7 @@ export function buildCatalog(db, nowIso = new Date().toISOString()) {
 
 // بصمة الكتالوج بدون وقت التحديث، حتى ما نرفع إذا ما تغيّر شي.
 export function catalogHash(catalog) {
-  return fingerprint(JSON.stringify({ ...catalog, updatedAt: '' }));
+  return fingerprint(JSON.stringify({ ...catalog, updatedAt: '', dataAt: '' }));
 }
 
 // ---------- الرفع إلى GitHub ----------
@@ -189,11 +196,17 @@ export function siteUrl(settings = {}) {
   return base + (c.dir ? c.dir.replace(/^\/|\/$/g, '') + '/' : '');
 }
 
+// الرمز ينحفظ بإعدادات المتجر (ملف الـ Drive الخاص بيك) حتى كل جهاز مربوط بنفس الحساب يقدر ينشر.
+export function tokenFor(db) {
+  return getConfig().token || db?.settings?.ghToken || '';
+}
+
+let activeToken = '';
 async function gh(path, { method = 'GET', body } = {}) {
   const c = getConfig();
   const res = await fetch('https://api.github.com' + path, {
     method,
-    headers: { Authorization: 'Bearer ' + c.token, Accept: 'application/vnd.github+json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    headers: { Authorization: 'Bearer ' + (activeToken || c.token), Accept: 'application/vnd.github+json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (res.status === 401) throw new Error('رمز GitHub غير صالح أو انتهى. سوّ رمز جديد من صفحة الموقع.');
@@ -221,10 +234,11 @@ function setStatus(s) {
 
 let running = null;
 // ينشر الكتالوج والصور بـ commit واحد. force: حتى لو ما تغيّر شي.
-export function publish(db, { force = false } = {}) {
+export function publish(db, { force = false, allowOlder = false } = {}) {
   if (running) return running;
   const c = getConfig();
-  if (!c.token) return Promise.reject(new Error('اربط الموقع أولاً: صفحة "الموقع الإلكتروني" ← الصق رمز GitHub.'));
+  activeToken = tokenFor(db);
+  if (!activeToken) return Promise.reject(new Error('اربط الموقع أولاً: صفحة "الموقع الإلكتروني" ← الصق رمز GitHub.'));
   const { catalog, images } = buildCatalog(db);
   const hash = catalogHash(catalog);
   if (!force && hash === c.lastHash) return Promise.resolve({ skipped: true });
@@ -238,6 +252,22 @@ export function publish(db, { force = false } = {}) {
         const parent = ref.object.sha;
         const commit = await gh(`/repos/${c.repo}/git/commits/${parent}`);
         const tree = await gh(`/repos/${c.repo}/git/trees/${commit.tree.sha}?recursive=1`);
+        // إذا الموقع عنده بيانات أحدث من هذا الجهاز (تعديل من جهاز ثاني ما وصل بعد)، ما ننشر فوقها.
+        const remoteCat = (tree.tree || []).find((t) => t.type === 'blob' && t.path === `${pre}data/catalog.json`);
+        if (remoteCat && !allowOlder) {
+          try {
+            const blob = await gh(`/repos/${c.repo}/git/blobs/${remoteCat.sha}`);
+            const bytes = Uint8Array.from(atob(blob.content.replace(/\n/g, '')), (ch) => ch.charCodeAt(0));
+            const remote = JSON.parse(new TextDecoder().decode(bytes));
+            if (remote.dataAt && catalog.dataAt && remote.dataAt > catalog.dataAt) {
+              const e = new Error('بيانات هذا الجهاز أقدم من الموقع. زامن مع Google Drive أولاً حتى توصل آخر التعديلات، وبعدها ينشر تلقائياً.');
+              e.stale = true;
+              throw e;
+            }
+          } catch (e) {
+            if (e.stale) throw e;
+          }
+        }
         const imgDir = `${pre}data/img/`;
         const existing = new Set((tree.tree || []).filter((t) => t.type === 'blob' && t.path.startsWith(imgDir)).map((t) => t.path));
         const entries = [];
@@ -266,10 +296,11 @@ export function publish(db, { force = false } = {}) {
       return { ok: true, products: catalog.products.length };
     } catch (e) {
       setConfig({ lastError: e.message });
-      setStatus({ state: 'error', message: e.message });
+      setStatus({ state: e.stale ? 'stale' : 'error', message: e.message });
       throw e;
     } finally {
       running = null;
+      activeToken = '';
     }
   })();
   return running;
@@ -290,7 +321,7 @@ let timer = null;
 export function startAuto(store) {
   store.subscribe(() => {
     const c = getConfig();
-    if (!c.token || !c.auto) return;
+    if (!tokenFor(store.getData()) || !c.auto) return;
     clearTimeout(timer);
     timer = setTimeout(() => {
       if (typeof navigator !== 'undefined' && navigator.onLine === false) return;

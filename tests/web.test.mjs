@@ -3,7 +3,7 @@ import { buildCatalog, catalogHash, fingerprint } from '../js/web.js';
 
 const photo = 'data:image/jpeg;base64,AAAA';
 const db = {
-  settings: { storeName: 'متجر رواسي', deliveryFee: 5000, categories: ['سيراميك', 'دينيات'], web: { showSoldOut: true } },
+  settings: { storeName: 'متجر رواسي', deliveryFee: 5000, categories: ['سيراميك', 'دينيات'], web: { showSoldOut: true }, ghToken: 'ghp_SECRET123', updatedAt: '2026-10-01T00:00:00.000Z' },
   products: [
     { id: 'p1', name: 'صحن', category: 'سيراميك', price: 25000, photo, notes: 'سري جداً', code: 'C1', compareAt: 30000, webDesc: 'صحن فيروزي', featured: true, createdAt: '2026-10-01' },
     { id: 'p2', name: 'مسبحة', category: 'دينيات', price: 18000, photo, photos: [photo] },
@@ -54,5 +54,14 @@ assert.ok(!hideOut.products.some((p) => p.id === 'p5'));
 const again = buildCatalog(db, '2026-11-02T10:00:00.000Z').catalog;
 assert.equal(catalogHash(again), catalogHash(catalog));
 assert.notEqual(fingerprint('a'), fingerprint('b'));
+
+// رمز GitHub ما يطلع بالكتالوج أبداً
+assert.ok(!json.includes('ghp_SECRET123'), 'تسريب رمز GitHub');
+
+// dataAt = أحدث تعديل، وما يغيّر البصمة
+const db2 = { ...db, products: db.products.map((p) => (p.id === 'p2' ? { ...p, updatedAt: '2026-11-01T10:00:00.000Z' } : p)) };
+const c2 = buildCatalog(db2, '2026-10-31T10:00:00.000Z').catalog;
+assert.equal(c2.dataAt, '2026-11-01T10:00:00.000Z');
+assert.equal(catalogHash(c2), catalogHash(catalog));
 
 console.log('web tests passed ✓');

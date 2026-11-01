@@ -24,6 +24,7 @@ function summary() {
 function webView() {
   const c = web.getConfig();
   const st = web.getStatus();
+  const connected = !!web.tokenFor(data());
   const w = web.webSettings(settings());
   const url = web.siteUrl(settings());
   const s = summary();
@@ -41,7 +42,7 @@ function webView() {
     <div class="kpi"><span>مخفية</span><b>${fmtNum(s.hidden.length)}</b></div>
   </section>
 
-  ${c.token ? `
+  ${connected ? `
   <section class="card form">
     <h2>${icon('upload', 20)} النشر</h2>
     <p class="muted small">الموقع يعرض المنتجات وأسعار البيع والمتوفر فقط. الكلفة والتومان والأرباح وملاحظاتك الداخلية ما تطلع أبداً.</p>
@@ -50,7 +51,7 @@ function webView() {
       ${url ? `<button class="btn btn-ghost" type="button" data-act="webCopyLink">${icon('copy', 18)}<span>انسخ الرابط</span></button>` : ''}
     </div>
     <label class="check"><input type="checkbox" data-in="webAuto" ${c.auto ? 'checked' : ''}> <span>نشر تلقائي: بعد أي تعديل يخص الزبون (سعر، كمية، حجز، صورة) بدقيقة</span></label>
-    <p class="small ${st.state === 'error' || c.lastError ? 'neg' : 'muted'}">${st.state === 'error' ? esc(st.message) : st.state === 'ok' ? esc(st.message) : c.lastError ? esc(c.lastError) : c.lastAt ? 'آخر نشر: ' + esc(when(c.lastAt)) : 'ما صار نشر بعد. اضغط الزر حتى تنزل القطع على الموقع.'}</p>
+    <p class="small ${st.state === 'error' || st.state === 'stale' || c.lastError ? 'neg' : 'muted'}">${st.state === 'error' || st.state === 'stale' ? esc(st.message) : st.state === 'ok' ? esc(st.message) : c.lastError ? esc(c.lastError) : c.lastAt ? 'آخر نشر: ' + esc(when(c.lastAt)) : 'ما صار نشر بعد. اضغط الزر حتى تنزل القطع على الموقع.'}</p>
     ${url ? `<p class="small muted">الرابط: <a href="${esc(url)}" target="_blank" rel="noopener" dir="ltr">${esc(url.replace(/^https:\/\//, ''))}</a></p>` : ''}
     <details>
       <summary class="small muted">إعدادات متقدمة</summary>
@@ -132,8 +133,9 @@ register({
     webPublish: () => doPublish({ force: true }),
     webCopyLink: () => copyText(web.siteUrl(settings())),
     webDisconnect: () => {
-      if (!confirm('تفصل الموقع عن هذا الجهاز؟ الموقع يبقى شغال، بس التحديثات توقف من هذا الجهاز.')) return;
+      if (!confirm('تفصل الموقع؟ الموقع يبقى شغال، بس التحديثات التلقائية توقف من كل أجهزتك لحد ما تربطه مرة ثانية.')) return;
       web.setConfig({ token: '', lastHash: '' });
+      store.setSettings({ ghToken: '' });
       rerender();
     },
   },
@@ -147,6 +149,8 @@ register({
       try {
         const { branch } = await web.testToken(token, c.repo);
         web.setConfig({ token, branch, lastHash: '' });
+        // نحفظه بإعدادات المتجر حتى يوصل لكل أجهزتك مع مزامنة الـ Drive
+        store.setSettings({ ghToken: token });
         toast('انربط الموقع ✓ جاري النشر…');
         rerender();
         await doPublish({ force: true });
