@@ -319,6 +319,9 @@ export async function testToken(token, repo) {
 // نشر تلقائي: بعد أي تعديل بدقيقة، فقط إذا تغيّر شي يخص الزبون.
 let timer = null;
 export function startAuto(store) {
+  // جهاز مربوط من قبل: ننقل رمزه لإعدادات المتجر حتى يوصل لباقي الأجهزة مع المزامنة.
+  const local = getConfig().token;
+  if (local && !store.getData().settings?.ghToken) store.setSettings({ ghToken: local });
   store.subscribe(() => {
     const c = getConfig();
     if (!tokenFor(store.getData()) || !c.auto) return;
