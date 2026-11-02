@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import { register, state, inv, data, settings, nav, rerender, ui, setUi, formData } from './core.js';
 import { esc, icon, thumb, statusChip, stockPill, money, fmtDate, timeAgo, today, toast, options, emptyState, copyText, waLink, telLink } from './ui.js';
-import { STATUSES, live, fmtNum, fmtIQD, bookingTotals, lineTotals, batchStats, priceListText, report, customers, isReservedStatus, isShippedStatus, stockLevel } from './logic.js';
+import { STATUSES, live, fmtNum, fmtIQD, bookingTotals, lineTotals, batchStats, priceListText, report, customers, lotTotals, isReservedStatus, isShippedStatus, stockLevel } from './logic.js';
 import * as sync from './sync.js';
 
 const n = (v) => Number(v) || 0;
@@ -21,6 +21,44 @@ function syncChip() {
   };
   const [cls, ic, label] = map[st.state] || ['ok', 'cloudOk', 'متزامن مع Drive'];
   return `<button type="button" class="sync-chip ${cls}" data-act="syncNow" title="${esc(st.message || '')}">${icon(ic, 16)}<span>${label}</span></button>`;
+}
+
+// الحساب الكلي منذ البداية — حتى لا تختفي الأرقام عند بداية شهر جديد
+function totalsCard(d) {
+  const iv = inv();
+  const all = report(d, iv, '', '');
+  const t = today();
+  const first = new Date(t.slice(0, 8) + '01T12:00:00');
+  const prev = new Date(first.getFullYear(), first.getMonth() - 1, 1, 12);
+  const z = (x) => String(x).padStart(2, '0');
+  const pStart = `${prev.getFullYear()}-${z(prev.getMonth() + 1)}-01`;
+  const pEnd = `${prev.getFullYear()}-${z(prev.getMonth() + 1)}-${z(new Date(first.getTime() - 864e5).getDate())}`;
+  const last = report(d, iv, pStart, pEnd);
+  const purchases = live(d.lots).reduce((s, l) => s + lotTotals(l).cost, 0);
+  const P = pmap();
+  let stockCost = 0, stockSale = 0;
+  for (const it of Object.values(iv.items)) {
+    if (!P[it.productId] || it.stock <= 0) continue;
+    stockCost += it.stockValue || 0;
+    stockSale += it.stock * n(P[it.productId].price);
+  }
+  const back = all.revenue - purchases - all.expenses;
+  const neg = Object.values(iv.items).filter((it) => P[it.productId] && it.stock < 0);
+  const row = (label, val, cls = '') => `<div class="sum-row${cls}"><span>${label}</span><b>${val}</b></div>`;
+  return `<section class="card totals-card">
+    <div class="row between"><h2>الحساب الكلي منذ البداية</h2><a class="link" href="#/reports">التقارير</a></div>
+    ${row('إجمالي المبيعات', money(all.revenue))}
+    ${row('كلفة البضاعة المباعة', money(all.cost))}
+    ${all.expenses ? row('المصاريف', money(all.expenses)) : ''}
+    ${row('صافي الربح', money(all.netProfit), ' total')}
+    <hr class="sep">
+    ${row('رأس المال المدفوع (كل الوجبات)', money(purchases))}
+    ${row(back >= 0 ? 'رجع رأس المال + ربح زايد' : 'باقي حتى يرجع رأس المال', money(Math.abs(back)))}
+    ${row('قيمة المخزن الباقي (بالكلفة)', money(stockCost))}
+    ${row('قيمة المخزن الباقي (بسعر البيع)', money(stockSale))}
+    ${last.orders ? `<hr class="sep">${row('مبيعات الشهر الماضي', money(last.revenue))}${row('ربح الشهر الماضي', money(last.netProfit))}` : ''}
+    ${neg.length ? `<p class="note note-warn small">${neg.map((it) => esc(P[it.productId].name)).join('، ')}: المباع أكثر من الوارد، فكلفتها ناقصة والربح يطلع أعلى من الحقيقي. أضفها لوجبة.</p>` : ''}
+  </section>`;
 }
 
 function homeView() {
@@ -66,6 +104,8 @@ function homeView() {
     <div class="kpi"><span>قطع في المخزن</span><b>${fmtNum(pieces)}</b></div>
     <div class="kpi">${bs ? `<span>متبقي من الدفعة الحالية</span><b>${fmtNum(bs.remaining)} <small>من ${fmtNum(bs.allocated)}</small></b>` : `<span>مبيعات الشهر</span><b>${fmtNum(rMonth.revenue)} <small>د.ع</small></b>`}</div>
   </section>
+
+  ${totalsCard(d)}
 
   <div class="two-col">
     ${bs ? `<section class="card">

@@ -495,3 +495,7 @@ body.has-sync .page-head { padding-inline-end: 92px; }
 .sale-row { color: var(--ink); }
 .sale-row:hover { color: var(--ink); }
 .sale-row .col.end { align-items: flex-end; text-align: left; }
+
+.totals-card { margin-top: 12px; }
+.totals-card .sum-row { display: flex; justify-content: space-between; padding: 6px 0; }
+.sep { border: 0; border-top: 1px solid var(--line, #e3eaea); margin: 6px 0; }
