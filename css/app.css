@@ -499,3 +499,11 @@ body.has-sync .page-head { padding-inline-end: 92px; }
 .totals-card { margin-top: 12px; }
 .totals-card .sum-row { display: flex; justify-content: space-between; padding: 6px 0; }
 .sep { border: 0; border-top: 1px solid var(--line, #e3eaea); margin: 6px 0; }
+
+.month-nav { display: flex; align-items: center; gap: 8px; }
+.month-nav b { font-size: 17px; }
+.month-pick { margin-top: 4px; font: inherit; font-size: 13px; border: 1px solid var(--line, #dde6e6); border-radius: 8px; padding: 4px 8px; background: transparent; color: inherit; }
+.flip svg { transform: scaleX(-1); }
+.icon-btn[disabled] { opacity: .35; }
+.range-pick { margin-bottom: 10px; }
+.center { align-items: center; text-align: center; }

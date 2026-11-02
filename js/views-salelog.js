@@ -20,13 +20,34 @@ function localTime(iso) {
   return d.toLocaleTimeString('ar-IQ', { hour: 'numeric', minute: '2-digit' });
 }
 
+const MONTHS = ['كانون الثاني', 'شباط', 'آذار', 'نيسان', 'أيار', 'حزيران', 'تموز', 'آب', 'أيلول', 'تشرين الأول', 'تشرين الثاني', 'كانون الأول'];
+const z2 = (x) => String(x).padStart(2, '0');
+const monthLabel = (ym) => `${MONTHS[Number(ym.slice(5, 7)) - 1]} ${ym.slice(0, 4)}`;
+function shiftMonth(ym, delta) {
+  const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + delta, 1, 12);
+  return `${d.getFullYear()}-${z2(d.getMonth() + 1)}`;
+}
+function monthEnd(ym) {
+  const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0, 12);
+  return `${ym}-${z2(d.getDate())}`;
+}
+
 function periodRange(key) {
   const t = today();
   const d = new Date(t + 'T12:00:00');
   const iso = (x) => localDay(x.toISOString());
   if (key === 'today') return [t, t];
   if (key === 'week') return [iso(new Date(d.getTime() - 6 * 864e5)), t];
-  if (key === 'month') return [t.slice(0, 8) + '01', t];
+  if (key === 'month') {
+    const ym = ui('salesMonth', t.slice(0, 7));
+    return [ym + '-01', monthEnd(ym)];
+  }
+  if (key === 'range') {
+    let from = ui('salesFrom', t.slice(0, 8) + '01');
+    let to = ui('salesTo', t);
+    if (from && to && from > to) [from, to] = [to, from];
+    return [from || '0000-01-01', to || '9999-12-31'];
+  }
   return ['', ''];
 }
 
@@ -60,13 +81,23 @@ function salesView() {
 
   return `
   <header class="page-head"><div class="row gap"><a class="icon-btn" href="#/more" aria-label="رجوع">${icon('back')}</a><h1>سجل المبيعات</h1></div></header>
-  <div class="chips">${[['today', 'اليوم'], ['week', 'آخر 7 أيام'], ['month', 'هذا الشهر'], ['all', 'الكل']].map(([k, l]) => `<button type="button" class="pill${k === period ? ' on' : ''}" data-act="salesPeriod" data-v="${k}">${l}</button>`).join('')}</div>
+  <div class="chips">${[['today', 'اليوم'], ['week', 'آخر 7 أيام'], ['month', 'حسب الشهر'], ['range', 'من تاريخ إلى تاريخ'], ['all', 'الكل']].map(([k, l]) => `<button type="button" class="pill${k === period ? ' on' : ''}" data-act="salesPeriod" data-v="${k}">${l}</button>`).join('')}</div>
+  ${period === 'month' ? (() => { const ym = ui('salesMonth', today().slice(0, 7)); const cur = today().slice(0, 7); return `<div class="card"><div class="row between month-nav">
+    <button type="button" class="icon-btn flip" data-act="salesMonthShift" data-v="-1" aria-label="الشهر السابق">${icon('chev', 20)}</button>
+    <label class="col center grow"><b>${esc(monthLabel(ym))}</b><input type="month" value="${esc(ym)}" data-in="salesMonthPick" aria-label="اختر الشهر" class="month-pick"></label>
+    <button type="button" class="icon-btn" data-act="salesMonthShift" data-v="1" aria-label="الشهر التالي"${ym >= cur ? ' disabled' : ''}>${icon('chev', 20)}</button>
+  </div></div>`; })() : ''}
+  ${period === 'range' ? `<div class="card grid2 range-pick">
+    <label class="field"><span>من تاريخ</span><input type="date" value="${esc(ui('salesFrom', today().slice(0, 8) + '01'))}" data-in="salesFrom"></label>
+    <label class="field"><span>إلى تاريخ</span><input type="date" value="${esc(ui('salesTo', today()))}" data-in="salesTo"></label>
+  </div>` : ''}
   <div class="search">${icon('search', 18)}<label for="salesQ" class="sr">بحث</label><input id="salesQ" type="search" placeholder="ابحث باسم المنتج أو الزبون" value="${esc(q)}" data-in="salesSearch" autocomplete="off"></div>
   <section class="kpis kpis-3">
     <div class="kpi"><span>المبيعات</span><b>${fmtNum(sum)} <small>د.ع</small></b></div>
     <div class="kpi"><span>الربح</span><b>${fmtNum(profit)} <small>د.ع</small></b></div>
-    <div class="kpi"><span>القطع</span><b>${fmtNum(pieces)}</b></div>
+    <div class="kpi"><span>القطع</span><b>${fmtNum(pieces)} <small>· ${fmtNum(list.length)} بيعة</small></b></div>
   </section>
+  ${period === 'all' && !q ? monthsSummary(list, costs) : ''}
   <div id="salesList">${groups.length ? groups.map((g) => `
     <section class="card sale-day">
       <div class="row between"><h2>${esc(fmtDate(g.day, true))}</h2><span class="small"><b>${money(g.total)}</b> <span class="muted">· ربح ${fmtNum(g.profit)}</span></span></div>
@@ -80,6 +111,19 @@ function salesView() {
           <span class="col end"><b>${money(t.itemsNet)}</b><small class="link">${b.quick ? 'تعديل' : 'فتح'}</small></span></a></li>`;
       }).join('')}</ul>
     </section>`).join('') : emptyState(q || from ? 'ما كو مبيعات بهذا البحث' : 'ما كو مبيعات مسجلة بعد')}</div>`;
+}
+
+function monthsSummary(list, costs) {
+  const m = {};
+  for (const { b, day } of list) {
+    const ym = day.slice(0, 7);
+    const t = bookingTotals(b);
+    const r = m[ym] || (m[ym] = { total: 0, profit: 0, pieces: 0, n: 0 });
+    r.total += t.itemsNet; r.profit += t.itemsNet - (costs[b.id]?.total || 0); r.pieces += t.qty; r.n++;
+  }
+  const keys = Object.keys(m).sort().reverse();
+  if (keys.length < 1) return '';
+  return `<section class="card"><h2>ملخص الأشهر</h2><ul class="list">${keys.map((k) => `<li><a class="row between" href="#/sales" data-act="salesGoMonth" data-v="${k}"><span class="col"><b>${esc(monthLabel(k))}</b><small class="muted">${fmtNum(m[k].n)} بيعة · ${fmtNum(m[k].pieces)} قطعة</small></span><span class="col end"><b>${money(m[k].total)}</b><small class="muted">ربح ${fmtNum(m[k].profit)}</small></span></a></li>`).join('')}</ul></section>`;
 }
 
 function saleDraft(id) {
@@ -152,6 +196,9 @@ register({
       const out = document.getElementById('saleTotal');
       if (out) out.textContent = fmtIQD(t);
     },
+    salesMonthPick: (el) => { if (el.value) setUi('salesMonth', el.value); },
+    salesFrom: (el) => { if (el.value) setUi('salesFrom', el.value); },
+    salesTo: (el) => { if (el.value) setUi('salesTo', el.value); },
     salesSearch: (el) => {
       setUi('salesQ', el.value, { render: false });
       const pos = el.selectionStart;
@@ -165,6 +212,13 @@ register({
   },
   act: {
     salesPeriod: (el) => setUi('salesPeriod', el.dataset.v),
+    salesMonthShift: (el) => {
+      const cur = ui('salesMonth', today().slice(0, 7));
+      const next = shiftMonth(cur, Number(el.dataset.v));
+      if (next > today().slice(0, 7)) return;
+      setUi('salesMonth', next);
+    },
+    salesGoMonth: (el, e) => { e?.preventDefault?.(); setUi('salesMonth', el.dataset.v, { render: false }); setUi('salesPeriod', 'month'); },
     deleteSale: (el) => {
       if (!confirm('تحذف هذه البيعة؟ القطع ترجع للمخزن.')) return;
       store.remove('bookings', el.dataset.id);
