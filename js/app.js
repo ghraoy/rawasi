@@ -7,13 +7,14 @@ import './views-stock.js';
 import './views-sales.js';
 import './views-web.js';
 import './views-salelog.js';
+import './views-preorders.js';
 import * as web from './web.js';
 import { hashPin } from './views-more.js';
 
 const NAV = [
   { name: 'home', label: 'الرئيسية', icon: 'home', match: ['home'] },
   { name: 'products', label: 'المنتجات', icon: 'box', match: ['products', 'product', 'lots', 'lot', 'import'] },
-  { name: 'bookings', label: 'الحجوزات', icon: 'clip', match: ['bookings', 'booking'] },
+  { name: 'bookings', label: 'الحجوزات', icon: 'clip', match: ['bookings', 'booking', 'preorders', 'preorder'] },
   { name: 'batches', label: 'الدفعات', icon: 'layers', match: ['batches', 'batch'] },
   { name: 'more', label: 'المزيد', icon: 'menu', match: ['more', 'ai', 'customers', 'expenses', 'reports', 'settings', 'web', 'sales', 'sale'] },
 ];

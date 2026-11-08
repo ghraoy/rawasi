@@ -1,7 +1,7 @@
 // تخزين البيانات محلياً في المتصفح (IndexedDB) حتى يشتغل التطبيق بدون إنترنت.
 // كل سجل عنده id و updatedAt، والحذف يكون بعلامة deleted حتى تنجح المزامنة بين الأجهزة.
 
-export const COLLECTIONS = ['products', 'lots', 'bookings', 'batches', 'expenses', 'adjustments'];
+export const COLLECTIONS = ['products', 'lots', 'bookings', 'batches', 'expenses', 'adjustments', 'preorders'];
 
 const DB_NAME = 'rawasi';
 const STORE = 'kv';

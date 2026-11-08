@@ -4,6 +4,7 @@ import { register, state, inv, data, settings, nav, rerender, ui, setUi, formDat
 import { esc, icon, thumb, statusChip, stockPill, money, fmtDate, timeAgo, today, toast, options, emptyState, copyText, waLink, telLink } from './ui.js';
 import { STATUSES, live, fmtNum, fmtIQD, bookingTotals, lineTotals, batchStats, priceListText, report, customers, lotTotals, isReservedStatus, isShippedStatus, stockLevel } from './logic.js';
 import * as sync from './sync.js';
+import { bookingsSwitch } from './views-preorders.js';
 
 const n = (v) => Number(v) || 0;
 const pmap = () => Object.fromEntries(store.all('products').map((p) => [p.id, p]));
@@ -195,6 +196,7 @@ function bookingsView() {
     <div class="col"><h1>الحجوزات</h1><span class="muted small">${batch ? 'دفعة: ' + esc(batch.name) + ' · ' : ''}${cust ? 'زبون محدد · ' : ''}مرتبة حسب الأسبقية</span></div>
     ${batch || cust ? `<a class="btn btn-ghost btn-sm" href="#/bookings">إلغاء الفلتر</a>` : ''}
   </header>
+  ${bookingsSwitch('bookings')}
   <div class="tabs" role="tablist" aria-label="حالة الحجز">
     ${TABS.map((t) => `<button type="button" role="tab" aria-selected="${t.key === tabKey}" class="tab${t.key === tabKey ? ' on' : ''}" data-act="bkTab" data-v="${t.key}">${t.label} <small>${fmtNum(all.filter((b) => t.test(b.status)).length)}</small></button>`).join('')}
   </div>
@@ -646,7 +648,12 @@ register({
       if (isShippedStatus(d.status) && !rec.shippedAt) rec.shippedAt = new Date().toISOString();
       if (!isShippedStatus(d.status)) delete rec.shippedAt;
       delete rec.aiNote;
+      if (d.fromPreorder && id === 'new') rec.fromPreorder = d.fromPreorder;
       rec = store.put('bookings', rec);
+      if (d.fromPreorder && id === 'new') {
+        const pre = store.get('preorders', d.fromPreorder);
+        if (pre) store.put('preorders', { ...pre, status: 'done', bookingId: rec.id });
+      }
       delete state.drafts['booking:' + id];
       toast(id === 'new' ? `انحفظ الحجز #${rec.no} ✓` : 'انحفظ ✓');
       nav(id === 'new' ? '#/bookings' : '#/booking/' + rec.id);
