@@ -395,3 +395,19 @@ export function aiSummary(db, inv, todayIso) {
     openBookings: live(db.bookings).filter((b) => isReservedStatus(b.status)).length,
   };
 }
+
+// أسعار الكمية (مثل التوزيعات: 50 قطعة بسعر، 100 قطعة بسعر أقل)
+export function cleanTiers(tiers) {
+  return (tiers || []).map((t) => ({ qty: Number(t.qty) || 0, price: Number(t.price) || 0 })).filter((t) => t.qty > 0 && t.price > 0).sort((a, b) => a.qty - b.qty);
+}
+export function tierUnitPrice(p, qty) {
+  const tiers = cleanTiers(p?.tiers);
+  const q = Number(qty) || 0;
+  let best = null;
+  for (const t of tiers) if (q >= t.qty) best = t;
+  if (!best) return Number(p?.price) || 0;
+  return Math.round((best.price / best.qty) * 100) / 100;
+}
+export function tiersText(p) {
+  return cleanTiers(p?.tiers).map((t) => `${fmtNum(t.qty)} قطعة = ${fmtNum(t.price)}`).join(' · ');
+}

@@ -524,3 +524,6 @@ body.has-sync .page-head { padding-inline-end: 92px; }
 .pre-item .price { width: 110px; flex: none; }
 @media (max-width: 520px) { .pre-item { flex-wrap: wrap; } .pre-item .grow { flex-basis: 100%; } .pre-item .qty, .pre-item .price { flex: 1; width: auto; } }
 .pre-actions { margin-top: 10px; }
+.stepper .qty-in { width: 52px; height: 42px; border: 0; background: transparent; text-align: center; font-family: var(--display); font-weight: 600; font-size: 16px; color: inherit; }
+.tiers-line { display: block; margin-top: 2px; }
+.tiers-box .grid2 { margin-top: 6px; }

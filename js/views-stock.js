@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import { register, state, inv, data, settings, nav, rerender, ui, setUi, formData, bumpVersion } from './core.js';
 import { esc, icon, thumb, stockPill, money, fmtDate, today, toast, resizeImage, options, emptyState, copyText } from './ui.js';
-import { live, fmtNum, fmtIQD, lotBreakdown, lotTotals, lotRemaining, productCostHistory, rateFromTotals, tomanToIqd, stockLevel, round } from './logic.js';
+import { live, fmtNum, fmtIQD, lotBreakdown, lotTotals, lotRemaining, productCostHistory, rateFromTotals, tomanToIqd, stockLevel, round, cleanTiers, tierUnitPrice, tiersText } from './logic.js';
 import { parseFile, downloadTemplate, sheetToText } from './excel.js';
 import * as ai from './ai.js';
 import * as sync from './sync.js';
@@ -53,7 +53,7 @@ function productGrid() {
     return `<a class="pcard" href="#/product/${esc(p.id)}">
       <div class="pcard-img">${p.photo ? `<img src="${esc(p.photo)}" alt="" loading="lazy">` : thumb(p, 40)}<span class="pcard-cat">${esc(p.category || '—')}</span></div>
       <div class="pcard-body"><h3>${esc(p.name)}</h3>
-      <div class="row between"><span class="price">${money(p.price)}</span>${stockPill(it, p.minStock ?? settings().defaultMinStock)}</div></div></a>`;
+      ${cleanTiers(p.tiers).length ? `<small class="muted tiers-line">${esc(tiersText(p))}</small>` : ''}<div class="row between"><span class="price">${money(p.price)}</span>${stockPill(it, p.minStock ?? settings().defaultMinStock)}</div></div></a>`;
   }).join('')}</div>`;
 }
 
@@ -124,7 +124,7 @@ function productView(id) {
     <p class="muted small">للبيع اللي صار بدون حجز بالتطبيق. القطع تنخصم من المخزن فوراً وتنحسب بالأرباح.</p>
     <form class="col gap" data-submit="quickSale" data-id="${esc(p.id)}">
       <div class="grid3">
-        <label class="field"><span>عدد القطع المباعة</span><input name="qty" inputmode="numeric" required placeholder="1"></label>
+        <label class="field"><span>عدد القطع المباعة</span><input name="qty" inputmode="numeric" required placeholder="1"${cleanTiers(p.tiers).length ? ` data-in="qsQty" data-id="${esc(p.id)}"` : ''}></label>
         <label class="field"><span>سعر القطعة</span><input name="price" inputmode="numeric" value="${esc(p.price || '')}"></label>
         <label class="field"><span>خصم كلي (دينار)</span><input name="disc" inputmode="numeric" placeholder="0"></label>
       </div>
@@ -132,6 +132,7 @@ function productView(id) {
         <label class="field"><span>التاريخ</span><input type="date" name="date" value="${today()}"></label>
         <label class="field"><span>الزبون (اختياري)</span><input name="customer" placeholder="الاسم أو ملاحظة"></label>
       </div>
+      ${cleanTiers(p.tiers).length ? `<p class="note small">${icon('tag', 16)} أسعار الكمية: ${esc(tiersText(p))} — سعر القطعة يتغير وحده حسب العدد.</p><p class="small muted" id="qsTotal"></p>` : ''}
       <button class="btn" type="submit">${icon('check', 18)}<span>تسجيل البيع</span></button>
     </form>
     ${sales.length ? `<div class="row between"><b class="small">آخر البيعات</b><a class="link" href="#/sales">سجل المبيعات</a></div><ul class="list">${sales.map((b) => { const l = b.lines.find((x) => x.productId === p.id); return `<li class="row between"><a class="col grow" href="#/sale/${esc(b.id)}" style="color:inherit"><b>${fmtNum(l.qty)} قطعة × ${fmtNum(l.price)} <small class="link">تعديل</small></b><small class="muted">${esc(fmtDate(b.shippedAt || b.date))}${b.customer?.name && b.customer.name !== 'بيع مباشر' ? ' · ' + esc(b.customer.name) : ''}</small></a><span class="row gap"><b>${money(n(l.qty) * n(l.price) - n(l.disc))}</b><button type="button" class="icon-btn sm" data-act="deleteQuickSale" data-id="${esc(b.id)}" aria-label="حذف البيعة">${icon('x', 16)}</button></span></li>`; }).join('')}</ul>` : ''}
@@ -160,6 +161,11 @@ function productView(id) {
       <label class="field"><span>الكود / الباركود</span><input name="code" value="${esc(p.code || '')}" placeholder="اختياري" dir="ltr"></label>
       <label class="field"><span>تصنيف جديد</span><input name="newCategory" placeholder="فقط إذا اخترت تصنيف جديد"></label>
     </div>
+    <details class="web-box tiers-box"${cleanTiers(p.tiers).length || p.category === 'توزيعات' ? ' open' : ''}>
+      <summary><b>${icon('tag', 18)} أسعار الكمية</b><span class="muted small">للتوزيعات والجملة — اختياري</span></summary>
+      <p class="muted small">مثلاً: 50 قطعة بـ 25000 و 100 قطعة بـ 45000. لما تبيع هذا العدد أو أكثر، سعر القطعة يتحسب وحده.</p>
+      ${[0, 1, 2].map((i) => { const t = (p.tiers || [])[i] || {}; return `<div class="grid2"><label class="field"><span>عدد القطع</span><input name="tq${i}" inputmode="numeric" value="${esc(t.qty || '')}" placeholder="${[50, 100, 200][i]}"></label><label class="field"><span>السعر الكلي (دينار)</span><input name="tp${i}" inputmode="numeric" value="${esc(t.price || '')}" placeholder="${['25000', '45000', ''][i]}"></label></div>`; }).join('')}
+    </details>
     <label class="field"><span>ملاحظات <small class="muted">داخلية، ما تظهر للزبون</small></span><textarea name="notes" rows="2" placeholder="القياس، المادة، اللون…">${esc(p.notes || '')}</textarea></label>
     <details class="web-box"${p.webDesc || p.featured || p.compareAt || p.webHide || extraPhotos.length ? ' open' : ''}>
       <summary><b>${icon('globe', 18)} على الموقع الإلكتروني</b><span class="muted small">${p.webHide ? 'مخفي' : 'ظاهر'}</span></summary>
@@ -462,6 +468,15 @@ register({
     import: () => importView(),
   },
   input: {
+    qsQty: (el) => {
+      const p = store.get('products', el.dataset.id);
+      const q = n(el.value);
+      const unit = tierUnitPrice(p, q);
+      const f = el.form;
+      if (f?.elements.price) f.elements.price.value = unit || '';
+      const out = document.getElementById('qsTotal');
+      if (out) out.textContent = q ? `المجموع: ${fmtNum(Math.round(q * unit))} د.ع` : '';
+    },
     prodSearch: (el) => {
       setUi('prodQ', el.value, { render: false });
       document.getElementById('prodGrid').innerHTML = productGrid();
@@ -545,7 +560,7 @@ register({
         if (/\.json$/i.test(f.name)) {
           const j = JSON.parse(await f.text());
           if (j.format !== 'rawasi-import' || !Array.isArray(j.rows)) throw new Error('ملف JSON غير معروف');
-          rows = j.rows.map((r) => ({ name: String(r.name || '').trim(), category: r.category || '', qty: n(r.qty), costToman: n(r.costToman), costIqd: n(r.costIqd), price: n(r.price), code: r.code || '', photo: r.photo || '' })).filter((r) => r.name);
+          rows = j.rows.map((r) => ({ name: String(r.name || '').trim(), category: r.category || '', qty: n(r.qty), costToman: n(r.costToman), costIqd: n(r.costIqd), price: n(r.price), code: r.code || '', photo: r.photo || '', tiers: cleanTiers(r.tiers), notes: r.notes || '', webDesc: r.webDesc || '', minStock: r.minStock ?? '' })).filter((r) => r.name);
           const opt = state.drafts.importOpt || (state.drafts.importOpt = { mode: 'lot', date: today(), currency: 'toman', tomanPer1000: settings().tomanPer1000 || '', name: '' });
           Object.assign(opt, { mode: 'lot', name: j.lot?.name || '', date: j.lot?.date || today() });
           state.drafts.importNote = j.lot?.note || '';
@@ -740,8 +755,9 @@ register({
       const base = id ? store.get('products', id) : {};
       const photo = state.drafts.productPhoto?.id === (id || 'new') ? state.drafts.productPhoto.photo : base.photo;
       const photos = state.drafts.productPhotos?.id === (id || 'new') ? state.drafts.productPhotos.list : base.photos || [];
+      const tiers = cleanTiers([0, 1, 2].map((i) => ({ qty: v['tq' + i], price: v['tp' + i] })));
       const rec = store.put('products', {
-        ...base, name: v.name, category, price: n(v.price), minStock: v.minStock === '' ? '' : n(v.minStock), code: v.code, notes: v.notes, photo: photo || '',
+        ...base, tiers, name: v.name, category, price: n(v.price), minStock: v.minStock === '' ? '' : n(v.minStock), code: v.code, notes: v.notes, photo: photo || '',
         photos, webHide: !v.webShow, featured: !!v.featured, compareAt: n(v.compareAt) || '', webDesc: v.webDesc || '',
       });
       state.drafts.productPhoto = null;
@@ -831,10 +847,10 @@ register({
         let p = byName.get(r.name.trim());
         if (r.category && !settings().categories.includes(r.category)) store.setSettings({ categories: [...settings().categories, r.category] });
         if (!p) {
-          p = store.put('products', { name: r.name.trim(), category: r.category || settings().categories[0] || '', price: n(r.price), code: r.code || '', minStock: '', notes: '', photo: r.photo || '' });
+          p = store.put('products', { name: r.name.trim(), category: r.category || settings().categories[0] || '', price: n(r.price), code: r.code || '', minStock: r.minStock ?? '', notes: r.notes || '', photo: r.photo || '', tiers: r.tiers || [], webDesc: r.webDesc || '' });
           byName.set(p.name, p);
         } else if (n(r.price) > 0 || r.code || r.category || r.photo) {
-          p = store.put('products', { ...p, price: n(r.price) > 0 ? n(r.price) : p.price, code: r.code || p.code, category: r.category || p.category, photo: r.photo || p.photo || '' });
+          p = store.put('products', { ...p, price: n(r.price) > 0 ? n(r.price) : p.price, code: r.code || p.code, category: r.category || p.category, photo: r.photo || p.photo || '', tiers: r.tiers?.length ? r.tiers : p.tiers || [], webDesc: r.webDesc || p.webDesc || '', notes: r.notes || p.notes || '' });
         }
         if (v.mode === 'lot' && n(r.qty) > 0) lines.push({ productId: p.id, qty: n(r.qty), costToman: v.currency === 'iqd' ? 0 : n(r.costToman), costIqd: v.currency === 'iqd' ? n(r.costIqd || r.costToman) : (n(r.costToman) ? '' : n(r.costIqd) || '') });
       }

@@ -120,6 +120,12 @@ async function lockScreen() {
 
 async function start() {
   await store.load();
+  // قسم التوزيعات (مرة وحدة لكل بيانات قديمة)
+  try {
+    const cats = store.getData().settings?.categories || [];
+    if (!cats.includes('توزيعات') && !localStorage.getItem('rawasi-cat-tawzi')) store.setSettings({ categories: [...cats, 'توزيعات'] });
+    localStorage.setItem('rawasi-cat-tawzi', '1');
+  } catch {}
   await lockScreen();
   setRenderer(render);
   bindEvents();

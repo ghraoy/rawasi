@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import { register, state, inv, data, settings, nav, rerender, ui, setUi, formData } from './core.js';
 import { esc, icon, thumb, statusChip, stockPill, money, fmtDate, timeAgo, today, toast, options, emptyState, copyText, waLink, telLink } from './ui.js';
-import { STATUSES, live, fmtNum, fmtIQD, bookingTotals, lineTotals, batchStats, priceListText, report, customers, lotTotals, isReservedStatus, isShippedStatus, stockLevel } from './logic.js';
+import { STATUSES, live, fmtNum, fmtIQD, bookingTotals, lineTotals, batchStats, priceListText, report, customers, lotTotals, isReservedStatus, isShippedStatus, stockLevel, tierUnitPrice, cleanTiers } from './logic.js';
 import * as sync from './sync.js';
 import { bookingsSwitch } from './views-preorders.js';
 
@@ -315,7 +315,7 @@ function bookingView(id) {
           <div class="row gap wrap">
             <div class="stepper" role="group" aria-label="الكمية">
               <button type="button" data-act="bkQty" data-i="${i}" data-d="1" aria-label="زيادة">+</button>
-              <span id="bq-${i}">${fmtNum(l.qty)}</span>
+              <input id="bq-${i}" class="qty-in" inputmode="numeric" data-in="bkLine" data-i="${i}" data-k="qty" value="${esc(l.qty)}" aria-label="العدد">
               <button type="button" data-act="bkQty" data-i="${i}" data-d="-1" aria-label="إنقاص">−</button>
             </div>
             <label class="field grow"><span class="sr">سعر القطعة</span><input inputmode="numeric" data-in="bkLine" data-i="${i}" data-k="price" value="${esc(l.price)}" placeholder="السعر"></label>
@@ -355,13 +355,22 @@ function bookingView(id) {
   </form>`;
 }
 
+// إذا المنتج عنده أسعار كمية، سعر القطعة يتبع العدد
+function applyTier(l, i) {
+  const p = store.get('products', l.productId);
+  if (!p || !cleanTiers(p.tiers).length) return;
+  l.price = tierUnitPrice(p, l.qty);
+  const pe = document.querySelector(`[data-in="bkLine"][data-i="${i}"][data-k="price"]`);
+  if (pe) pe.value = l.price;
+}
+
 function refreshBooking(id) {
   const d = bookingDraft(id);
   d.lines.forEach((_, i) => {
     const el = document.getElementById('bl-' + i);
     if (el) el.innerHTML = lineInfo(d, i, id);
     const q = document.getElementById('bq-' + i);
-    if (q) q.textContent = fmtNum(d.lines[i].qty);
+    if (q && document.activeElement !== q) q.value = d.lines[i].qty;
   });
   const t = document.getElementById('bkTotals');
   if (t) t.innerHTML = bookingTotalsHtml(d);
@@ -530,12 +539,14 @@ register({
       const p = store.get('products', el.value);
       const batch = d.batchId ? store.get('batches', d.batchId) : null;
       const bPrice = batch?.items?.find((x) => x.productId === el.value)?.price;
-      l.price = n(bPrice) > 0 ? n(bPrice) : p ? n(p.price) : '';
+      l.price = n(bPrice) > 0 ? n(bPrice) : p ? tierUnitPrice(p, l.qty) : '';
       rerender();
     },
     bkLine: (el) => {
       const id = state.route.id || 'new';
-      bookingDraft(id).lines[+el.dataset.i][el.dataset.k] = el.value;
+      const l = bookingDraft(id).lines[+el.dataset.i];
+      l[el.dataset.k] = el.value;
+      if (el.dataset.k === 'qty') applyTier(l, +el.dataset.i);
       refreshBooking(id);
     },
     btField: (el) => {
@@ -599,6 +610,7 @@ register({
       const id = state.route.id || 'new';
       const l = bookingDraft(id).lines[+el.dataset.i];
       l.qty = Math.max(1, n(l.qty) + n(el.dataset.d));
+      applyTier(l, +el.dataset.i);
       refreshBooking(id);
     },
     bkToggleDisc: (el) => {
