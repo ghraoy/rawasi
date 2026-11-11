@@ -560,7 +560,7 @@ register({
         if (/\.json$/i.test(f.name)) {
           const j = JSON.parse(await f.text());
           if (j.format !== 'rawasi-import' || !Array.isArray(j.rows)) throw new Error('ملف JSON غير معروف');
-          rows = j.rows.map((r) => ({ name: String(r.name || '').trim(), category: r.category || '', qty: n(r.qty), costToman: n(r.costToman), costIqd: n(r.costIqd), price: n(r.price), code: r.code || '', photo: r.photo || '', tiers: cleanTiers(r.tiers), notes: r.notes || '', webDesc: r.webDesc || '', minStock: r.minStock ?? '' })).filter((r) => r.name);
+          rows = j.rows.map((r) => ({ name: String(r.name || '').trim(), category: r.category || '', qty: n(r.qty), costToman: n(r.costToman), costIqd: n(r.costIqd), price: n(r.price), code: r.code || '', photo: r.photo || '', photos: Array.isArray(r.photos) ? r.photos.filter((x) => typeof x === 'string').slice(0, 3) : [], tiers: cleanTiers(r.tiers), notes: r.notes || '', webDesc: r.webDesc || '', minStock: r.minStock ?? '' })).filter((r) => r.name);
           const opt = state.drafts.importOpt || (state.drafts.importOpt = { mode: 'lot', date: today(), currency: 'toman', tomanPer1000: settings().tomanPer1000 || '', name: '' });
           Object.assign(opt, { mode: 'lot', name: j.lot?.name || '', date: j.lot?.date || today() });
           state.drafts.importNote = j.lot?.note || '';
@@ -847,10 +847,10 @@ register({
         let p = byName.get(r.name.trim());
         if (r.category && !settings().categories.includes(r.category)) store.setSettings({ categories: [...settings().categories, r.category] });
         if (!p) {
-          p = store.put('products', { name: r.name.trim(), category: r.category || settings().categories[0] || '', price: n(r.price), code: r.code || '', minStock: r.minStock ?? '', notes: r.notes || '', photo: r.photo || '', tiers: r.tiers || [], webDesc: r.webDesc || '' });
+          p = store.put('products', { name: r.name.trim(), category: r.category || settings().categories[0] || '', price: n(r.price), code: r.code || '', minStock: r.minStock ?? '', notes: r.notes || '', photo: r.photo || '', photos: r.photos || [], tiers: r.tiers || [], webDesc: r.webDesc || '' });
           byName.set(p.name, p);
         } else if (n(r.price) > 0 || r.code || r.category || r.photo) {
-          p = store.put('products', { ...p, price: n(r.price) > 0 ? n(r.price) : p.price, code: r.code || p.code, category: r.category || p.category, photo: r.photo || p.photo || '', tiers: r.tiers?.length ? r.tiers : p.tiers || [], webDesc: r.webDesc || p.webDesc || '', notes: r.notes || p.notes || '' });
+          p = store.put('products', { ...p, price: n(r.price) > 0 ? n(r.price) : p.price, code: r.code || p.code, category: r.category || p.category, photo: r.photo || p.photo || '', photos: r.photos?.length ? r.photos : p.photos || [], tiers: r.tiers?.length ? r.tiers : p.tiers || [], webDesc: r.webDesc || p.webDesc || '', notes: r.notes || p.notes || '' });
         }
         if (v.mode === 'lot' && n(r.qty) > 0) lines.push({ productId: p.id, qty: n(r.qty), costToman: v.currency === 'iqd' ? 0 : n(r.costToman), costIqd: v.currency === 'iqd' ? n(r.costIqd || r.costToman) : (n(r.costToman) ? '' : n(r.costIqd) || '') });
       }
