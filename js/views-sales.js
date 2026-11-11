@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import { register, state, inv, data, settings, nav, rerender, ui, setUi, formData } from './core.js';
 import { esc, icon, thumb, statusChip, stockPill, money, fmtDate, timeAgo, today, toast, options, emptyState, copyText, waLink, telLink } from './ui.js';
-import { STATUSES, live, fmtNum, fmtIQD, bookingTotals, lineTotals, batchStats, priceListText, report, customers, lotTotals, isReservedStatus, isShippedStatus, stockLevel, tierUnitPrice, cleanTiers } from './logic.js';
+import { STATUSES, live, fmtNum, fmtIQD, bookingTotals, lineTotals, batchStats, priceListText, report, customers, lotTotals, isReservedStatus, isShippedStatus, stockLevel, tierUnitPrice, productTiers } from './logic.js';
 import * as sync from './sync.js';
 import { bookingsSwitch } from './views-preorders.js';
 
@@ -358,7 +358,7 @@ function bookingView(id) {
 // إذا المنتج عنده أسعار كمية، سعر القطعة يتبع العدد
 function applyTier(l, i) {
   const p = store.get('products', l.productId);
-  if (!p || !cleanTiers(p.tiers).length) return;
+  if (!p || !productTiers(p).length) return;
   l.price = tierUnitPrice(p, l.qty);
   const pe = document.querySelector(`[data-in="bkLine"][data-i="${i}"][data-k="price"]`);
   if (pe) pe.value = l.price;

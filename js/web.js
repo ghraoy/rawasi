@@ -1,6 +1,6 @@
 // ربط التطبيق بموقع المتجر: نبني "كتالوج" للزبون (بدون أي كلفة أو أرباح) ونرفعه للموقع على GitHub.
 // buildCatalog دالة صافية (تنختبر بسهولة)، والباقي يحتاج المتصفح.
-import { live, computeInventory, report } from './logic.js';
+import { live, computeInventory, report, productTiers } from './logic.js';
 
 const num = (v) => {
   const x = Number(v);
@@ -103,13 +103,15 @@ export function buildCatalog(db, nowIso = new Date().toISOString()) {
       cat: p.category || 'أخرى',
       price,
       status,
-      max: Math.min(avail, MAX_PER_ORDER),
+      max: productTiers(p).length ? avail : Math.min(avail, MAX_PER_ORDER),
       imgs,
       added,
     };
     if (was) rec.was = was;
     if (status === 'low') rec.left = avail;
     if (String(p.webDesc || '').trim()) rec.desc = String(p.webDesc).trim();
+    const tiers = productTiers(p);
+    if (tiers.length) rec.tiers = tiers.map((t) => ({ qty: t.qty, price: t.price }));
     if (p.featured) rec.feat = true;
     if (hot.has(p.id)) rec.hot = true;
     if (added && added >= newSince) rec.isNew = true;

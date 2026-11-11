@@ -2,7 +2,7 @@
 import * as store from './store.js';
 import { register, state, inv, data, settings, nav, rerender, ui, setUi, formData, bumpVersion } from './core.js';
 import { esc, icon, thumb, stockPill, money, fmtDate, today, toast, resizeImage, options, emptyState, copyText } from './ui.js';
-import { live, fmtNum, fmtIQD, lotBreakdown, lotTotals, lotRemaining, productCostHistory, rateFromTotals, tomanToIqd, stockLevel, round, cleanTiers, tierUnitPrice, tiersText } from './logic.js';
+import { live, fmtNum, fmtIQD, lotBreakdown, lotTotals, lotRemaining, productCostHistory, rateFromTotals, tomanToIqd, stockLevel, round, cleanTiers, productTiers, tierUnitPrice, tiersText, BULK_CATEGORY } from './logic.js';
 import { parseFile, downloadTemplate, sheetToText } from './excel.js';
 import * as ai from './ai.js';
 import * as sync from './sync.js';
@@ -53,7 +53,7 @@ function productGrid() {
     return `<a class="pcard" href="#/product/${esc(p.id)}">
       <div class="pcard-img">${p.photo ? `<img src="${esc(p.photo)}" alt="" loading="lazy">` : thumb(p, 40)}<span class="pcard-cat">${esc(p.category || '—')}</span></div>
       <div class="pcard-body"><h3>${esc(p.name)}</h3>
-      ${cleanTiers(p.tiers).length ? `<small class="muted tiers-line">${esc(tiersText(p))}</small>` : ''}<div class="row between"><span class="price">${money(p.price)}</span>${stockPill(it, p.minStock ?? settings().defaultMinStock)}</div></div></a>`;
+      ${productTiers(p).length ? `<small class="muted tiers-line">${esc(tiersText(p))}</small>` : ''}<div class="row between"><span class="price">${money(p.price)}</span>${stockPill(it, p.minStock ?? settings().defaultMinStock)}</div></div></a>`;
   }).join('')}</div>`;
 }
 
@@ -124,7 +124,7 @@ function productView(id) {
     <p class="muted small">للبيع اللي صار بدون حجز بالتطبيق. القطع تنخصم من المخزن فوراً وتنحسب بالأرباح.</p>
     <form class="col gap" data-submit="quickSale" data-id="${esc(p.id)}">
       <div class="grid3">
-        <label class="field"><span>عدد القطع المباعة</span><input name="qty" inputmode="numeric" required placeholder="1"${cleanTiers(p.tiers).length ? ` data-in="qsQty" data-id="${esc(p.id)}"` : ''}></label>
+        <label class="field"><span>عدد القطع المباعة</span><input name="qty" inputmode="numeric" required placeholder="1"${productTiers(p).length ? ` data-in="qsQty" data-id="${esc(p.id)}"` : ''}></label>
         <label class="field"><span>سعر القطعة</span><input name="price" inputmode="numeric" value="${esc(p.price || '')}"></label>
         <label class="field"><span>خصم كلي (دينار)</span><input name="disc" inputmode="numeric" placeholder="0"></label>
       </div>
@@ -132,7 +132,7 @@ function productView(id) {
         <label class="field"><span>التاريخ</span><input type="date" name="date" value="${today()}"></label>
         <label class="field"><span>الزبون (اختياري)</span><input name="customer" placeholder="الاسم أو ملاحظة"></label>
       </div>
-      ${cleanTiers(p.tiers).length ? `<p class="note small">${icon('tag', 16)} أسعار الكمية: ${esc(tiersText(p))} — سعر القطعة يتغير وحده حسب العدد.</p><p class="small muted" id="qsTotal"></p>` : ''}
+      ${productTiers(p).length ? `<p class="note small">${icon('tag', 16)} أسعار الكمية: ${esc(tiersText(p))} — سعر القطعة يتغير وحده حسب العدد.</p><p class="small muted" id="qsTotal"></p>` : ''}
       <button class="btn" type="submit">${icon('check', 18)}<span>تسجيل البيع</span></button>
     </form>
     ${sales.length ? `<div class="row between"><b class="small">آخر البيعات</b><a class="link" href="#/sales">سجل المبيعات</a></div><ul class="list">${sales.map((b) => { const l = b.lines.find((x) => x.productId === p.id); return `<li class="row between"><a class="col grow" href="#/sale/${esc(b.id)}" style="color:inherit"><b>${fmtNum(l.qty)} قطعة × ${fmtNum(l.price)} <small class="link">تعديل</small></b><small class="muted">${esc(fmtDate(b.shippedAt || b.date))}${b.customer?.name && b.customer.name !== 'بيع مباشر' ? ' · ' + esc(b.customer.name) : ''}</small></a><span class="row gap"><b>${money(n(l.qty) * n(l.price) - n(l.disc))}</b><button type="button" class="icon-btn sm" data-act="deleteQuickSale" data-id="${esc(b.id)}" aria-label="حذف البيعة">${icon('x', 16)}</button></span></li>`; }).join('')}</ul>` : ''}
@@ -151,7 +151,7 @@ function productView(id) {
       <div class="grow col gap">
         <label class="field"><span>اسم المنتج</span><input name="name" required value="${esc(p.name || '')}" placeholder="مثلاً: صحن سيراميك فيروزي"></label>
         <div class="grid2">
-          <label class="field"><span>التصنيف</span><select name="category">${options(cats, p.category)}<option value="__new">+ تصنيف جديد…</option></select></label>
+          <label class="field"><span>التصنيف</span><select name="category" data-in="prodCat">${options(cats, p.category)}<option value="__new">+ تصنيف جديد…</option></select></label>
           <label class="field"><span>سعر البيع (دينار)</span><input name="price" inputmode="numeric" value="${esc(p.price ?? '')}" placeholder="25000"></label>
         </div>
       </div>
@@ -161,8 +161,8 @@ function productView(id) {
       <label class="field"><span>الكود / الباركود</span><input name="code" value="${esc(p.code || '')}" placeholder="اختياري" dir="ltr"></label>
       <label class="field"><span>تصنيف جديد</span><input name="newCategory" placeholder="فقط إذا اخترت تصنيف جديد"></label>
     </div>
-    <details class="web-box tiers-box"${cleanTiers(p.tiers).length || p.category === 'توزيعات' ? ' open' : ''}>
-      <summary><b>${icon('tag', 18)} أسعار الكمية</b><span class="muted small">للتوزيعات والجملة — اختياري</span></summary>
+    <details class="web-box tiers-box" id="tiersBox"${p.category === BULK_CATEGORY ? ' open' : ' hidden'}>
+      <summary><b>${icon('tag', 18)} أسعار الكمية</b><span class="muted small">لقسم التوزيعات فقط</span></summary>
       <p class="muted small">مثلاً: 50 قطعة بـ 25000 و 100 قطعة بـ 45000. لما تبيع هذا العدد أو أكثر، سعر القطعة يتحسب وحده.</p>
       ${[0, 1, 2].map((i) => { const t = (p.tiers || [])[i] || {}; return `<div class="grid2"><label class="field"><span>عدد القطع</span><input name="tq${i}" inputmode="numeric" value="${esc(t.qty || '')}" placeholder="${[50, 100, 200][i]}"></label><label class="field"><span>السعر الكلي (دينار)</span><input name="tp${i}" inputmode="numeric" value="${esc(t.price || '')}" placeholder="${['25000', '45000', ''][i]}"></label></div>`; }).join('')}
     </details>
@@ -468,6 +468,14 @@ register({
     import: () => importView(),
   },
   input: {
+    // صندوق أسعار الكمية يظهر بس لما التصنيف "توزيعات"
+    prodCat: (el) => {
+      const box = document.getElementById('tiersBox');
+      if (!box) return;
+      const on = el.value === BULK_CATEGORY;
+      box.hidden = !on;
+      if (on) box.open = true;
+    },
     qsQty: (el) => {
       const p = store.get('products', el.dataset.id);
       const q = n(el.value);

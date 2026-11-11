@@ -400,8 +400,13 @@ export function aiSummary(db, inv, todayIso) {
 export function cleanTiers(tiers) {
   return (tiers || []).map((t) => ({ qty: Number(t.qty) || 0, price: Number(t.price) || 0 })).filter((t) => t.qty > 0 && t.price > 0).sort((a, b) => a.qty - b.qty);
 }
+// أسعار الكمية تخص قسم التوزيعات فقط
+export const BULK_CATEGORY = 'توزيعات';
+export function productTiers(p) {
+  return p?.category === BULK_CATEGORY ? cleanTiers(p?.tiers) : [];
+}
 export function tierUnitPrice(p, qty) {
-  const tiers = cleanTiers(p?.tiers);
+  const tiers = productTiers(p);
   const q = Number(qty) || 0;
   let best = null;
   for (const t of tiers) if (q >= t.qty) best = t;
@@ -409,5 +414,5 @@ export function tierUnitPrice(p, qty) {
   return Math.round((best.price / best.qty) * 100) / 100;
 }
 export function tiersText(p) {
-  return cleanTiers(p?.tiers).map((t) => `${fmtNum(t.qty)} قطعة = ${fmtNum(t.price)}`).join(' · ');
+  return productTiers(p).map((t) => `${fmtNum(t.qty)} قطعة = ${fmtNum(t.price)}`).join(' · ');
 }
