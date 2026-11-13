@@ -131,7 +131,7 @@ function expensesView() {
   <label class="field w-150"><span class="sr">الشهر</span><input type="month" value="${esc(month)}" data-in="expMonth"></label></header>
   <form class="card form" data-submit="addExpense">
     <div class="grid2">
-      <label class="field"><span>المبلغ (دينار)</span><input name="amount" inputmode="numeric" required placeholder="0"></label>
+      <label class="field"><span>المبلغ (دينار)</span><input name="amount" inputmode="decimal" required placeholder="0"></label>
       <label class="field"><span>النوع</span><select name="category">${options(settings().expenseCategories || [])}</select></label>
       <label class="field"><span>التاريخ</span><input type="date" name="date" value="${today()}"></label>
       <label class="field"><span>ملاحظة</span><input name="note" placeholder="اختياري"></label>
@@ -252,9 +252,9 @@ function settingsView() {
     <h2>${icon('gear', 20)} المتجر</h2>
     <div class="grid2">
       <label class="field"><span>اسم المتجر</span><input name="storeName" value="${esc(s.storeName)}"></label>
-      <label class="field"><span>أجور التوصيل الافتراضية</span><input name="deliveryFee" inputmode="numeric" value="${esc(s.deliveryFee)}"></label>
-      <label class="field"><span>آخر سعر صرف (تومان/1000 د.ع)</span><input name="tomanPer1000" inputmode="numeric" value="${esc(s.tomanPer1000 || '')}"></label>
-      <label class="field"><span>تنبيه المخزن الافتراضي</span><input name="defaultMinStock" inputmode="numeric" value="${esc(s.defaultMinStock)}"></label>
+      <label class="field"><span>أجور التوصيل الافتراضية</span><input name="deliveryFee" inputmode="decimal" value="${esc(s.deliveryFee)}"></label>
+      <label class="field"><span>آخر سعر صرف (تومان/1000 د.ع)</span><input name="tomanPer1000" inputmode="decimal" value="${esc(s.tomanPer1000 || '')}"></label>
+      <label class="field"><span>تنبيه المخزن الافتراضي</span><input name="defaultMinStock" inputmode="decimal" value="${esc(s.defaultMinStock)}"></label>
     </div>
     <label class="field"><span>التصنيفات (افصل بفاصلة)</span><input name="categories" value="${esc((s.categories || []).join('، '))}"></label>
     <label class="field"><span>أنواع المصاريف (افصل بفاصلة)</span><input name="expenseCategories" value="${esc((s.expenseCategories || []).join('، '))}"></label>
@@ -286,7 +286,7 @@ function settingsView() {
     <h2>${icon('lock', 20)} قفل التطبيق</h2>
     <p class="muted small">${hasPin ? 'القفل مفعّل على هذا الجهاز.' : 'ضع رمز من 4 أرقام أو أكثر حتى ما أحد يفتح التطبيق غيرك.'}</p>
     <form class="row gap wrap end" data-submit="setPin">
-      <label class="field"><span>رمز جديد</span><input name="pin" type="password" inputmode="numeric" minlength="4" autocomplete="new-password"></label>
+      <label class="field"><span>رمز جديد</span><input name="pin" type="password" inputmode="decimal" minlength="4" autocomplete="new-password"></label>
       <button class="btn btn-ghost" type="submit">حفظ الرمز</button>
       ${hasPin ? '<button class="btn btn-danger-ghost" type="button" data-act="removePin">إلغاء القفل</button>' : ''}
     </form>

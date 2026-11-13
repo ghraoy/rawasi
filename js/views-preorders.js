@@ -158,8 +158,8 @@ function preorderForm(id) {
       <div class="pre-items">${d.items.map((it, i) => `
         <div class="pre-item">
           <label class="field grow"><span>اسم المنتج (مبدئي)</span><input name="iname${i}" value="${esc(it.name)}" list="preProducts" placeholder="مثلاً: ساعة جدارية كبيرة" ${i === 0 ? 'required' : ''}></label>
-          <label class="field qty"><span>العدد</span><input name="iqty${i}" inputmode="numeric" value="${esc(it.qty)}" data-in="preCalc"></label>
-          <label class="field price"><span>السعر للقطعة</span><input name="iprice${i}" inputmode="numeric" value="${esc(it.price)}" placeholder="—" data-in="preCalc"></label>
+          <label class="field qty"><span>العدد</span><input name="iqty${i}" inputmode="decimal" value="${esc(it.qty)}" data-in="preCalc"></label>
+          <label class="field price"><span>السعر للقطعة</span><input name="iprice${i}" inputmode="decimal" value="${esc(it.price)}" placeholder="—" data-in="preCalc"></label>
           ${d.items.length > 1 ? `<button type="button" class="icon-btn" data-act="preDelItem" data-i="${i}" aria-label="حذف السطر">${icon('trash', 18)}</button>` : ''}
         </div>`).join('')}
       </div>
@@ -169,7 +169,7 @@ function preorderForm(id) {
 
     <section class="card">
       <div class="grid3">
-        <label class="field"><span>عربون مستلم (اختياري)</span><input name="deposit" inputmode="numeric" value="${esc(d.deposit)}" placeholder="0"></label>
+        <label class="field"><span>عربون مستلم (اختياري)</span><input name="deposit" inputmode="decimal" value="${esc(d.deposit)}" placeholder="0"></label>
         <label class="field"><span>موعد الوصول المتوقع</span><input type="date" name="expected" value="${esc(d.expected)}"></label>
         <label class="field"><span>ملاحظة</span><input name="note" value="${esc(d.note)}" placeholder="لون، قياس، تفاصيل…"></label>
       </div>

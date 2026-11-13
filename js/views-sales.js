@@ -315,14 +315,14 @@ function bookingView(id) {
           <div class="row gap wrap">
             <div class="stepper" role="group" aria-label="الكمية">
               <button type="button" data-act="bkQty" data-i="${i}" data-d="1" aria-label="زيادة">+</button>
-              <input id="bq-${i}" class="qty-in" inputmode="numeric" data-in="bkLine" data-i="${i}" data-k="qty" value="${esc(l.qty)}" aria-label="العدد">
+              <input id="bq-${i}" class="qty-in" inputmode="decimal" data-in="bkLine" data-i="${i}" data-k="qty" value="${esc(l.qty)}" aria-label="العدد">
               <button type="button" data-act="bkQty" data-i="${i}" data-d="-1" aria-label="إنقاص">−</button>
             </div>
-            <label class="field grow"><span class="sr">سعر القطعة</span><input inputmode="numeric" data-in="bkLine" data-i="${i}" data-k="price" value="${esc(l.price)}" placeholder="السعر"></label>
+            <label class="field grow"><span class="sr">سعر القطعة</span><input inputmode="decimal" data-in="bkLine" data-i="${i}" data-k="price" value="${esc(l.price)}" placeholder="السعر"></label>
             <button type="button" class="btn btn-ghost btn-sm" data-act="bkToggleDisc" data-i="${i}">${icon('tag', 16)}<span>خصم</span></button>
           </div>
           ${l.showDisc || n(l.disc) ? `<div class="row gap">
-            <label class="field grow"><span class="sr">قيمة الخصم</span><input inputmode="numeric" data-in="bkLine" data-i="${i}" data-k="disc" value="${esc(l.disc)}" placeholder="الخصم"></label>
+            <label class="field grow"><span class="sr">قيمة الخصم</span><input inputmode="decimal" data-in="bkLine" data-i="${i}" data-k="disc" value="${esc(l.disc)}" placeholder="الخصم"></label>
             <label class="field w-110"><span class="sr">نوع الخصم</span><select data-in="bkLine" data-i="${i}" data-k="discType">${options([{ value: 'amt', label: 'دينار' }, { value: 'pct', label: '٪ نسبة' }], l.discType)}</select></label>
             <label class="field grow"><span class="sr">سبب الخصم</span><input data-in="bkLine" data-i="${i}" data-k="discNote" value="${esc(l.discNote || '')}" placeholder="السبب (اختياري)"></label>
           </div>` : ''}
@@ -335,8 +335,8 @@ function bookingView(id) {
 
     <section class="card form">
       <div class="grid2">
-        <label class="field"><span>خصم على الحجز كله (دينار)</span><input inputmode="numeric" data-in="bkField" data-k="orderDiscount" value="${esc(d.orderDiscount)}" placeholder="0"></label>
-        <label class="field"><span>أجور التوصيل</span><input inputmode="numeric" data-in="bkField" data-k="deliveryFee" value="${esc(d.deliveryFee)}"></label>
+        <label class="field"><span>خصم على الحجز كله (دينار)</span><input inputmode="decimal" data-in="bkField" data-k="orderDiscount" value="${esc(d.orderDiscount)}" placeholder="0"></label>
+        <label class="field"><span>أجور التوصيل</span><input inputmode="decimal" data-in="bkField" data-k="deliveryFee" value="${esc(d.deliveryFee)}"></label>
         <label class="field"><span>الحالة</span><select data-in="bkField" data-k="status" data-rerender="1">${options(Object.entries(STATUSES).map(([k, s]) => ({ value: k, label: s.label })), d.status)}</select></label>
         <label class="field"><span>الدفعة</span><select data-in="bkField" data-k="batchId">${options(batches.map((b) => ({ value: b.id, label: b.name })), d.batchId, { empty: 'بدون' })}</select></label>
       </div>
@@ -458,8 +458,8 @@ function batchView(id) {
       <div class="col gap">
         ${d.items.map((it, i) => `<div class="row gap wrap bt-line">
           <label class="field grow"><span class="sr">المنتج</span><select data-in="btItem" data-i="${i}" data-k="productId">${`<option value="">اختر…</option>` + products.map((p) => `<option value="${esc(p.id)}"${p.id === it.productId ? ' selected' : ''}>${esc(p.name)} (متاح ${fmtNum(items[p.id]?.available || 0)})</option>`).join('')}</select></label>
-          <label class="field w-90"><span class="sr">الكمية</span><input inputmode="numeric" data-in="btItem" data-i="${i}" data-k="qty" value="${esc(it.qty)}" placeholder="الكمية"></label>
-          <label class="field w-110"><span class="sr">السعر</span><input inputmode="numeric" data-in="btItem" data-i="${i}" data-k="price" value="${esc(it.price)}" placeholder="${esc(P[it.productId]?.price || 'السعر')}"></label>
+          <label class="field w-90"><span class="sr">الكمية</span><input inputmode="decimal" data-in="btItem" data-i="${i}" data-k="qty" value="${esc(it.qty)}" placeholder="الكمية"></label>
+          <label class="field w-110"><span class="sr">السعر</span><input inputmode="decimal" data-in="btItem" data-i="${i}" data-k="price" value="${esc(it.price)}" placeholder="${esc(P[it.productId]?.price || 'السعر')}"></label>
           <button type="button" class="icon-btn sm" data-act="btRemove" data-i="${i}" aria-label="حذف">${icon('x', 16)}</button>
         </div>`).join('')}
       </div>

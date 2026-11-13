@@ -67,7 +67,53 @@ function onHash() {
   render();
 }
 
+// الأرقام: يقبل الأرقام العربية (١٥٠٠)، والفواصل (1,500 أو 1.500)،
+// وبخانات السعر يقبل الاختصار بالآلاف: 1.5 = 1500 ، 1.25 = 1250 ، 0.75 = 750
+const PRICE_RE = /price|disc|cost|deposit|amount|compareat|fee|extra|^tp\d|^iprice/i;
+function isNumField(el) {
+  return el && el.tagName === 'INPUT' && (el.inputMode === 'numeric' || el.inputMode === 'decimal' || el.getAttribute('inputmode'));
+}
+function cleanDigits(v) {
+  return String(v)
+    .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+    .replace(/٫/g, '.')
+    .replace(/[٬،,\s]/g, '');
+}
+function expandPrice(el) {
+  const key = el.name || el.dataset.k || '';
+  if (!PRICE_RE.test(key) || /toman/i.test(key)) return false;
+  const v = cleanDigits(el.value);
+  if (!/^\d*\.\d+$/.test(v)) return false;
+  const x = Number(v);
+  if (!(x > 0 && x < 1000)) return false;
+  el.value = String(Math.round(x * 1000));
+  return true;
+}
+function normalizeNumbers(root) {
+  root.querySelectorAll('input[inputmode]').forEach((el) => {
+    const c = cleanDigits(el.value);
+    if (c !== el.value) el.value = c;
+    expandPrice(el);
+  });
+}
+
 function bindEvents() {
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (!isNumField(el) || el.type === 'date') return;
+    const c = cleanDigits(el.value);
+    if (c !== el.value) el.value = c;
+  }, true);
+  document.addEventListener('change', (e) => {
+    const el = e.target;
+    if (!isNumField(el)) return;
+    if (expandPrice(el)) el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, true);
+  document.addEventListener('submit', (e) => {
+    const form = e.target.closest('form');
+    if (form) normalizeNumbers(form);
+  }, true);
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-act]');
     if (!el || el.disabled) return;

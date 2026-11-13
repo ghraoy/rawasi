@@ -166,9 +166,9 @@ function saleEditView(id) {
       <label class="field grow"><span>المنتج</span><select name="productId">${options(products.map((x) => ({ value: x.id, label: x.name })), d.productId)}</select></label>
     </div>
     <div class="grid3">
-      <label class="field"><span>عدد القطع</span><input name="qty" data-in="saleCalc" inputmode="numeric" value="${esc(d.qty)}" required></label>
-      <label class="field"><span>سعر القطعة</span><input name="price" data-in="saleCalc" inputmode="numeric" value="${esc(d.price)}"></label>
-      <label class="field"><span>خصم كلي (دينار)</span><input name="disc" data-in="saleCalc" inputmode="numeric" value="${esc(d.disc)}" placeholder="0"></label>
+      <label class="field"><span>عدد القطع</span><input name="qty" data-in="saleCalc" inputmode="decimal" value="${esc(d.qty)}" required></label>
+      <label class="field"><span>سعر القطعة</span><input name="price" data-in="saleCalc" inputmode="decimal" value="${esc(d.price)}"></label>
+      <label class="field"><span>خصم كلي (دينار)</span><input name="disc" data-in="saleCalc" inputmode="decimal" value="${esc(d.disc)}" placeholder="0"></label>
     </div>
     <div class="grid3">
       <label class="field"><span>تاريخ البيع</span><input type="date" name="date" value="${esc(d.date)}" required></label>

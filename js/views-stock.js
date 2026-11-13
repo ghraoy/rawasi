@@ -124,9 +124,9 @@ function productView(id) {
     <p class="muted small">للبيع اللي صار بدون حجز بالتطبيق. القطع تنخصم من المخزن فوراً وتنحسب بالأرباح.</p>
     <form class="col gap" data-submit="quickSale" data-id="${esc(p.id)}">
       <div class="grid3">
-        <label class="field"><span>عدد القطع المباعة</span><input name="qty" inputmode="numeric" required placeholder="1"${productTiers(p).length ? ` data-in="qsQty" data-id="${esc(p.id)}"` : ''}></label>
-        <label class="field"><span>سعر القطعة</span><input name="price" inputmode="numeric" value="${esc(p.price || '')}"></label>
-        <label class="field"><span>خصم كلي (دينار)</span><input name="disc" inputmode="numeric" placeholder="0"></label>
+        <label class="field"><span>عدد القطع المباعة</span><input name="qty" inputmode="decimal" required placeholder="1"${productTiers(p).length ? ` data-in="qsQty" data-id="${esc(p.id)}"` : ''}></label>
+        <label class="field"><span>سعر القطعة</span><input name="price" inputmode="decimal" value="${esc(p.price || '')}"></label>
+        <label class="field"><span>خصم كلي (دينار)</span><input name="disc" inputmode="decimal" placeholder="0"></label>
       </div>
       <div class="grid2">
         <label class="field"><span>التاريخ</span><input type="date" name="date" value="${today()}"></label>
@@ -152,19 +152,19 @@ function productView(id) {
         <label class="field"><span>اسم المنتج</span><input name="name" required value="${esc(p.name || '')}" placeholder="مثلاً: صحن سيراميك فيروزي"></label>
         <div class="grid2">
           <label class="field"><span>التصنيف</span><select name="category" data-in="prodCat">${options(cats, p.category)}<option value="__new">+ تصنيف جديد…</option></select></label>
-          <label class="field"><span>سعر البيع (دينار)</span><input name="price" inputmode="numeric" value="${esc(p.price ?? '')}" placeholder="25000"></label>
+          <label class="field"><span>سعر البيع (دينار)</span><input name="price" inputmode="decimal" value="${esc(p.price ?? '')}" placeholder="25000"></label>
         </div>
       </div>
     </div>
     <div class="grid3">
-      <label class="field"><span>تنبيه إذا قل عن</span><input name="minStock" inputmode="numeric" value="${esc(p.minStock ?? '')}" placeholder="${esc(settings().defaultMinStock)}"></label>
+      <label class="field"><span>تنبيه إذا قل عن</span><input name="minStock" inputmode="decimal" value="${esc(p.minStock ?? '')}" placeholder="${esc(settings().defaultMinStock)}"></label>
       <label class="field"><span>الكود / الباركود</span><input name="code" value="${esc(p.code || '')}" placeholder="اختياري" dir="ltr"></label>
       <label class="field"><span>تصنيف جديد</span><input name="newCategory" placeholder="فقط إذا اخترت تصنيف جديد"></label>
     </div>
     <details class="web-box tiers-box" id="tiersBox"${p.category === BULK_CATEGORY ? ' open' : ' hidden'}>
       <summary><b>${icon('tag', 18)} أسعار الكمية</b><span class="muted small">لقسم التوزيعات فقط</span></summary>
       <p class="muted small">مثلاً: 50 قطعة بـ 25000 و 100 قطعة بـ 45000. لما تبيع هذا العدد أو أكثر، سعر القطعة يتحسب وحده.</p>
-      ${[0, 1, 2].map((i) => { const t = (p.tiers || [])[i] || {}; return `<div class="grid2"><label class="field"><span>عدد القطع</span><input name="tq${i}" inputmode="numeric" value="${esc(t.qty || '')}" placeholder="${[50, 100, 200][i]}"></label><label class="field"><span>السعر الكلي (دينار)</span><input name="tp${i}" inputmode="numeric" value="${esc(t.price || '')}" placeholder="${['25000', '45000', ''][i]}"></label></div>`; }).join('')}
+      ${[0, 1, 2].map((i) => { const t = (p.tiers || [])[i] || {}; return `<div class="grid2"><label class="field"><span>عدد القطع</span><input name="tq${i}" inputmode="decimal" value="${esc(t.qty || '')}" placeholder="${[50, 100, 200][i]}"></label><label class="field"><span>السعر الكلي (دينار)</span><input name="tp${i}" inputmode="decimal" value="${esc(t.price || '')}" placeholder="${['25000', '45000', ''][i]}"></label></div>`; }).join('')}
     </details>
     <label class="field"><span>ملاحظات <small class="muted">داخلية، ما تظهر للزبون</small></span><textarea name="notes" rows="2" placeholder="القياس، المادة، اللون…">${esc(p.notes || '')}</textarea></label>
     <details class="web-box"${p.webDesc || p.featured || p.compareAt || p.webHide || extraPhotos.length ? ' open' : ''}>
@@ -174,7 +174,7 @@ function productView(id) {
           <label class="check"><input type="checkbox" name="webShow" ${p.webHide ? '' : 'checked'}> <span>إظهار بالموقع</span></label>
           <label class="check"><input type="checkbox" name="featured" ${p.featured ? 'checked' : ''}> <span>قطعة مميزة (تظهر بواجهة الموقع)</span></label>
         </div>
-        <label class="field"><span>السعر قبل الخصم <small class="muted">اختياري، يظهر مشطوب مع نسبة الخصم</small></span><input name="compareAt" inputmode="numeric" value="${esc(p.compareAt || '')}" placeholder="مثلاً 30000"></label>
+        <label class="field"><span>السعر قبل الخصم <small class="muted">اختياري، يظهر مشطوب مع نسبة الخصم</small></span><input name="compareAt" inputmode="decimal" value="${esc(p.compareAt || '')}" placeholder="مثلاً 30000"></label>
         <label class="field"><span class="row between"><span>وصف للزبون</span><button type="button" class="link small" data-act="aiWebDesc" data-id="${esc(id)}">${icon('spark', 14)} اكتبه بالذكاء</button></span><textarea name="webDesc" rows="3" placeholder="المادة، اللون، القياس، وين يصير بالبيت…">${esc(p.webDesc || '')}</textarea></label>
         <div class="field"><span>صور إضافية <small class="muted">حتى 3، من زوايا مختلفة أو بالبيت</small></span>
           <div class="row gap wrap">
@@ -204,7 +204,7 @@ function productView(id) {
     <p class="muted small">للقطع التالفة، الهدايا، أو تصحيح الجرد. الوارد الجديد سجله كوجبة تجهيز.</p>
     <form class="row gap wrap end" data-submit="addAdjustment" data-id="${esc(p.id)}">
       <label class="field"><span>النوع</span><select name="kind">${options([{ value: 'damaged', label: 'تالف' }, { value: 'gift', label: 'هدية / عينة' }, { value: 'countMinus', label: 'جرد: ناقص' }, { value: 'countPlus', label: 'جرد: زائد' }], 'damaged')}</select></label>
-      <label class="field w-90"><span>العدد</span><input name="qty" inputmode="numeric" required placeholder="1"></label>
+      <label class="field w-90"><span>العدد</span><input name="qty" inputmode="decimal" required placeholder="1"></label>
       <label class="field grow"><span>ملاحظة</span><input name="note" placeholder="اختياري"></label>
       <button class="btn btn-ghost" type="submit">تسجيل</button>
     </form>
@@ -302,11 +302,11 @@ function lotView(id) {
       </div>
       ${toman ? `
       <div class="rate-box">
-        <label class="field"><span>سعر الصرف: كم تومان مقابل 1000 دينار؟</span><input inputmode="numeric" data-in="lotField" data-k="tomanPer1000" value="${esc(d.tomanPer1000)}" placeholder="اكتب سعر يوم الشراء"></label>
+        <label class="field"><span>سعر الصرف: كم تومان مقابل 1000 دينار؟</span><input inputmode="decimal" data-in="lotField" data-k="tomanPer1000" value="${esc(d.tomanPer1000)}" placeholder="اكتب سعر يوم الشراء"></label>
         <span class="muted small or">أو</span>
-        <label class="field"><span>كم دفعت فعلياً بالدينار؟</span><input inputmode="numeric" data-in="lotPaid" value="${esc(d.totalIqdPaid)}" placeholder="ويطلع الصرف لحاله"></label>
+        <label class="field"><span>كم دفعت فعلياً بالدينار؟</span><input inputmode="decimal" data-in="lotPaid" value="${esc(d.totalIqdPaid)}" placeholder="ويطلع الصرف لحاله"></label>
       </div>` : ''}
-      <label class="field"><span>مصاريف إضافية بالدينار (نقل، كمرك، تغليف…)</span><input inputmode="numeric" data-in="lotField" data-k="extraCostIqd" value="${esc(d.extraCostIqd)}" placeholder="0"><small class="muted">تنوزع على القطع حسب قيمتها.</small></label>
+      <label class="field"><span>مصاريف إضافية بالدينار (نقل، كمرك، تغليف…)</span><input inputmode="decimal" data-in="lotField" data-k="extraCostIqd" value="${esc(d.extraCostIqd)}" placeholder="0"><small class="muted">تنوزع على القطع حسب قيمتها.</small></label>
     </section>
 
     <section class="card">
@@ -323,11 +323,11 @@ function lotView(id) {
             <label class="field"><span>التصنيف</span><select data-in="lotLine" data-i="${i}" data-k="newCategory">${options(settings().categories, l.newCategory || settings().categories[0])}</select></label>
           </div>` : ''}
           <div class="grid3">
-            <label class="field"><span>الكمية</span><input inputmode="numeric" data-in="lotLine" data-i="${i}" data-k="qty" value="${esc(l.qty)}" placeholder="0"></label>
+            <label class="field"><span>الكمية</span><input inputmode="decimal" data-in="lotLine" data-i="${i}" data-k="qty" value="${esc(l.qty)}" placeholder="0"></label>
             ${toman
-              ? `<label class="field"><span>سعر القطعة (تومان)</span><input inputmode="numeric" data-in="lotLine" data-i="${i}" data-k="costToman" value="${esc(l.costToman)}" placeholder="0"></label>`
-              : `<label class="field"><span>سعر القطعة (دينار)</span><input inputmode="numeric" data-in="lotLine" data-i="${i}" data-k="costIqd" value="${esc(l.costIqd)}" placeholder="0"></label>`}
-            ${l.productId === '__new' ? `<label class="field"><span>سعر البيع للمنتج الجديد</span><input inputmode="numeric" data-in="lotLine" data-i="${i}" data-k="salePrice" value="${esc(l.salePrice)}" placeholder="0"></label>` : ''}
+              ? `<label class="field"><span>سعر القطعة (تومان)</span><input inputmode="decimal" data-in="lotLine" data-i="${i}" data-k="costToman" value="${esc(l.costToman)}" placeholder="0"></label>`
+              : `<label class="field"><span>سعر القطعة (دينار)</span><input inputmode="decimal" data-in="lotLine" data-i="${i}" data-k="costIqd" value="${esc(l.costIqd)}" placeholder="0"></label>`}
+            ${l.productId === '__new' ? `<label class="field"><span>سعر البيع للمنتج الجديد</span><input inputmode="decimal" data-in="lotLine" data-i="${i}" data-k="salePrice" value="${esc(l.salePrice)}" placeholder="0"></label>` : ''}
           </div>
           <div class="muted small" id="lc-${i}">${lineCostText(costs[i])}</div>
           ${id !== 'new' && l.productId && l.productId !== '__new' ? (() => { const r = (lotRemaining(inv())[id] || {})[l.productId]; const q = n(l.qty); return r == null && !q ? '' : `<div class="small">انباع <b>${fmtNum(Math.max(q - (r || 0), 0))}</b> · باقي <b>${fmtNum(r || 0)}</b> من ${fmtNum(q)}</div>`; })() : ''}
@@ -408,7 +408,7 @@ function importView() {
       <label class="field"><span>اسم الوجبة</span><input name="name" value="${esc(opt.name)}" placeholder="وجبة من إكسل"></label>
       <label class="field"><span>التاريخ</span><input type="date" name="date" value="${esc(opt.date)}"></label>
       <label class="field"><span>عملة الشراء بالملف</span><select name="currency">${options([{ value: 'toman', label: 'تومان' }, { value: 'iqd', label: 'دينار' }], opt.currency)}</select></label>
-      <label class="field"><span>تومان مقابل 1000 دينار</span><input name="tomanPer1000" inputmode="numeric" value="${esc(opt.tomanPer1000)}"></label>
+      <label class="field"><span>تومان مقابل 1000 دينار</span><input name="tomanPer1000" inputmode="decimal" value="${esc(opt.tomanPer1000)}"></label>
     </div>
     <button class="btn" type="submit">${icon('check', 18)}<span>تطبيق</span></button>
   </form>` : ''}`;
